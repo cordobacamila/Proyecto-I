@@ -3,27 +3,25 @@ import pandas as pd
 import io
 import os
 
+# Configuración de página: Mantenemos wide pero los elementos internos se adaptarán
 st.set_page_config(page_title="BCRA Entidades Financieras", layout="wide")
 
 # --- FUNCIONES DE SOPORTE ---
 def formato_ar(valor):
     return "{:,.2f}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
 
+@st.cache_data(ttl=60)
 def cargar_datos():
     col_names = ["ID", "Banco", "Fecha", "Codigo", "Cuenta", "Debe", "Haber"]
     
-    # --- LISTA DE TUS LINKS DE DROPBOX ---
-    # Agrega aquí todos los archivos que quieras que la app procese
+    # LINKS ACTUALIZADOS (Asegúrate de que terminen en dl=1)
     urls_dropbox = [
-        "https://www.dropbox.com/scl/fo/29qrx2lsucpd3b8lr9xbw/AA8ZyYq_US-a5fK2-t6ypyo?rlkey=bqnn5koqn7bk3g0hvi7tzldeg&st=ot3xmvxm&dl=1", # Cambia dl=0 por dl=1
         "https://www.dropbox.com/scl/fo/29qrx2lsucpd3b8lr9xbw/AA8ZyYq_US-a5fK2-t6ypyo?rlkey=bqnn5koqn7bk3g0hvi7tzldeg&st=ot3xmvxm&dl=1"
     ]
     
     lista_df = []
-    
     for url in urls_dropbox:
         try:
-            # Pandas puede leer directamente desde una URL
             temp_df = pd.read_csv(url, sep='\t', names=col_names, encoding='latin-1', on_bad_lines='skip')
             lista_df.append(temp_df)
         except Exception as e:
@@ -34,15 +32,11 @@ def cargar_datos():
         
     df = pd.concat(lista_df, ignore_index=True)
     
-    # ... (El resto del procesamiento de limpieza que ya tenías sigue igual)
     for col in ['Banco', 'Cuenta', 'Fecha', 'ID', 'Codigo']:
         df[col] = df[col].astype(str).str.replace('"', '').str.strip()
 
     df = df[df['Fecha'].str.len() == 6]
     df = df.drop_duplicates()
-
-    # (Mapeos, cálculos de Debe/Haber y Clasificación Nivel 0/1...)
-    # Asegúrate de mantener toda la lógica de limpieza que ya funcionaba
     
     df['Año'] = df['Fecha'].str[:4]
     df['Mes'] = df['Fecha'].str[4:]
@@ -74,7 +68,7 @@ def cargar_datos():
 df = cargar_datos()
 
 if df.empty:
-    st.error("No hay datos. Verifique los archivos .TXT.")
+    st.error("No hay datos disponibles.")
     st.stop()
 
 # --- SIDEBAR: BOTÓN LIMPIAR ---
@@ -82,35 +76,31 @@ with st.sidebar:
     if st.button("🔄 Limpiar Todos los Filtros"):
         st.rerun()
 
-# --- SECCIÓN DE DETALLE Y VARIACIONES ---
+# --- SECCIÓN DE FILTROS (OPTIMIZADA PARA MÓVIL) ---
 st.header(f"📊 Detalle de Cuentas y Variaciones")
 
-lista_bancos_full = sorted(df["Banco"].unique())
 bancos_sel = st.multiselect("🏢 Seleccionar Entidades:", 
-                            options=lista_bancos_full, 
-                            default=[lista_bancos_full[0]] if lista_bancos_full else [])
+                            options=sorted(df["Banco"].unique()), 
+                            default=[sorted(df["Banco"].unique())[0]])
 
-if not bancos_sel:
-    st.info("Selecciona al menos una entidad.")
-    st.stop()
-
-# --- FILTROS DE CABECERA ---
-col_f1, col_f2, col_f3, col_f4 = st.columns([0.8, 0.8, 1.2, 1.2])
-with col_f1:
+# Filtros en 2 columnas para iPhone (en lugar de 4 amontonadas)
+c_f1, c_f2 = st.columns(2)
+with c_f1:
     año_sel = st.selectbox("Año:", sorted(df["Año"].unique(), reverse=True))
-with col_f2:
+with c_f2:
     mes_sel = st.selectbox("Mes:", sorted(df[df["Año"] == año_sel]["Mes"].unique()))
-with col_f3:
+
+c_f3, c_f4 = st.columns(2)
+with c_f3:
     nivel0_sel = st.selectbox("Masa Patrimonial:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
-with col_f4:
+with c_f4:
     nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
 
-# Filtro de Cuentas (Multi-selección)
-df_opc_cuentas = df.copy()
-if nivel0_sel != "Todos": df_opc_cuentas = df_opc_cuentas[df_opc_cuentas["Nivel_0"] == nivel0_sel]
-if nivel1_sel != "Todos": df_opc_cuentas = df_opc_cuentas[df_opc_cuentas["Nivel_1"] == nivel1_sel]
-lista_cuentas_fmt = sorted((df_opc_cuentas["Codigo"] + " - " + df_opc_cuentas["Cuenta"]).unique())
-
+# Filtro de Cuentas (Full width para touch)
+df_opc = df.copy()
+if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
+if nivel1_sel != "Todos": df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
+lista_cuentas_fmt = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
 cuentas_sel_list = st.multiselect("🔢 Seleccionar Cuenta(s):", options=lista_cuentas_fmt)
 
 # --- LÓGICA DE COMPARATIVO ---
@@ -128,7 +118,7 @@ df_comp = pd.merge(df_actual, df_anterior[['Banco', 'Codigo', 'Saldo_Act']], on=
 df_comp['Var. Absoluta'] = df_comp['Saldo_Act'] - df_comp['Saldo_Act_Ant']
 df_comp['Var. %'] = df_comp.apply(lambda x: ((x['Saldo_Act'] - x['Saldo_Act_Ant']) / abs(x['Saldo_Act_Ant']) * 100) if x['Saldo_Act_Ant'] != 0 else 0, axis=1)
 
-# --- TABLA RESUMEN CON FORMATO CONDICIONAL ---
+# --- TABLA RESUMEN ---
 st.divider()
 df_res = df_comp.copy()
 if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
@@ -149,81 +139,37 @@ df_styled = (df_res[["Banco", "Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", 
 
 st.dataframe(df_styled, use_container_width=True, hide_index=True)
 
-
-
-
-
-
-# --- RATIOS DE SALUD BANCARIA CON VARIACIÓN ---
+# --- RATIOS DE SALUD BANCARIA (OPTIMIZADO MÓVIL) ---
 st.divider()
 st.subheader("🏥 Ratios de Salud Bancaria")
-
 try:
-    # --- Datos Periodo Actual ---
+    # (Lógica de cálculos que ya tenías...)
     disp_act = df_comp[df_comp['Codigo'] == "110000"]['Saldo_Act'].sum()
     depo_act = abs(df_comp[df_comp['Codigo'] == "210000"]['Saldo_Act'].sum())
     prest_act = df_comp[df_comp['Codigo'] == "120000"]['Saldo_Act'].sum()
     act_act = df_comp[df_comp['Codigo'] == "100000"]['Debe'].sum()
     pn_act = act_act - df_comp[df_comp['Codigo'] == "300000"]['Haber'].sum()
 
-    # --- Datos Periodo Anterior ---
     disp_ant = df_comp[df_comp['Codigo'] == "110000"]['Saldo_Act_Ant'].sum()
     depo_ant = abs(df_comp[df_comp['Codigo'] == "210000"]['Saldo_Act_Ant'].sum())
     prest_ant = df_comp[df_comp['Codigo'] == "120000"]['Saldo_Act_Ant'].sum()
-    act_ant = df_comp[df_comp['Codigo'] == "100000"]['Saldo_Act_Ant'].sum() # Nota: ajustar si el merge usa Debe/Haber_Ant
-    # Calculamos PN Anterior (Activo Ant - Pasivo Ant)
-    pas_ant = df_comp[df_comp['Codigo'] == "300000"]['Saldo_Act_Ant'].sum()
-    pn_ant = act_ant - pas_ant
+    act_ant = df_comp[df_comp['Codigo'] == "100000"]['Saldo_Act_Ant'].sum()
+    pn_ant = act_ant - df_comp[df_comp['Codigo'] == "300000"]['Saldo_Act_Ant'].sum()
 
-    # --- Cálculo de Ratios Actuales ---
-    r_liq_act = (disp_act / depo_act * 100) if depo_act != 0 else 0
-    r_solv_act = (pn_act / act_act * 100) if act_act != 0 else 0
-    r_prest_act = (prest_act / act_act * 100) if act_act != 0 else 0
-
-    # --- Cálculo de Ratios Anteriores (para el Delta) ---
-    r_liq_ant = (disp_ant / depo_ant * 100) if depo_ant != 0 else 0
-    r_solv_ant = (pn_ant / act_ant * 100) if act_ant != 0 else 0
-    r_prest_ant = (prest_ant / act_ant * 100) if act_ant != 0 else 0
-
-    # --- Deltas ---
-    d_liq = r_liq_act - r_liq_ant
-    d_solv = r_solv_act - r_solv_ant
-    d_prest = r_prest_act - r_prest_ant
-
-    # --- Renderizado de Metrics ---
-    m1, m2, m3 = st.columns(3)
+    r_liq_act, r_liq_ant = (disp_act/depo_act*100 if depo_act!=0 else 0), (disp_ant/depo_ant*100 if depo_ant!=0 else 0)
+    r_solv_act, r_solv_ant = (pn_act/act_act*100 if act_act!=0 else 0), (pn_ant/act_ant*100 if act_ant!=0 else 0)
     
-    # Liquidez: Más es mejor generalmente
-    m1.metric("Ratio de Liquidez", f"{r_liq_act:.2f}%", f"{d_liq:.2f}%")
-    
-    # Solvencia: Más es mejor (fortaleza patrimonial)
-    m2.metric("Ratio de Solvencia", f"{r_solv_act:.2f}%", f"{d_solv:.2f}%")
-    
-    # Préstamos: La interpretación depende de la estrategia, aquí neutro (off) o normal
-    m3.metric("Exposición a Préstamos", f"{r_prest_act:.2f}%", f"{d_prest:.2f}%", delta_color="normal")
-
-except Exception as e:
-    st.info(f"Faltan cuentas base o hubo un error en el cálculo: {e}")
+    # En iPhone, estas 3 columnas se verán una debajo de otra
+    m1, m2, m3 = st.columns([1, 1, 1])
+    m1.metric("Liquidez", f"{r_liq_act:.2f}%", f"{r_liq_act - r_liq_ant:.2f}%")
+    m2.metric("Solvencia", f"{r_solv_act:.2f}%", f"{r_solv_act - r_solv_ant:.2f}%")
+    m3.metric("Préstamos/Activo", f"{(prest_act/act_act*100):.2f}%")
+except:
+    st.info("Datos insuficientes para ratios.")
 
 
 
 
-
-# --- EVOLUCIÓN DE RATIOS ---
-st.subheader("📈 Evolutivo de Ratios")
-df_ratios_hist = []
-for (fecha, banco), group in df.groupby(['Fecha', 'Banco']):
-    act_h = group[group['Codigo'] == "100000"]['Debe'].sum()
-    pas_h = group[group['Codigo'] == "300000"]['Haber'].sum()
-    df_ratios_hist.append({
-        "Fecha": fecha, "Banco": banco,
-        "Liquidez (%)": (group[group['Codigo'] == "110000"]['Saldo_Act'].sum() / abs(group[group['Codigo'] == "210000"]['Saldo_Act'].sum()) * 100) if group[group['Codigo'] == "210000"]['Saldo_Act'].sum() != 0 else 0,
-        "Solvencia (%)": ((act_h - pas_h) / act_h * 100) if act_h != 0 else 0
-    })
-df_evol_ratios = pd.DataFrame(df_ratios_hist)
-ratio_viz = st.selectbox("Elegir ratio:", ["Liquidez (%)", "Solvencia (%)"])
-if not df_evol_ratios.empty:
-    st.line_chart(df_evol_ratios[df_evol_ratios['Banco'].isin(bancos_sel)].pivot(index="Fecha", columns="Banco", values=ratio_viz))
 
 # --- MARKET SHARE REAL CON MULTI-SELECCIÓN, EVOLUTIVO Y TABLA DE CRECIMIENTO ---
 st.divider()
