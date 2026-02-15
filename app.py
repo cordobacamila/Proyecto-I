@@ -10,13 +10,37 @@ st.set_page_config(page_title="BCRA Entidades Financieras", layout="wide")
 def formato_ar(valor):
     return "{:,.2f}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
 
-@st.cache_data(ttl=60)
+# --- CARGA DE DATOS CORREGIDA ---
+@st.cache_data(ttl=300) # Se actualiza cada 5 min
 def cargar_datos():
     col_names = ["ID", "Banco", "Fecha", "Codigo", "Cuenta", "Debe", "Haber"]
     
     # LINKS ACTUALIZADOS (Asegúrate de que terminen en dl=1)
     urls_dropbox = [
-        "https://www.dropbox.com/scl/fo/29qrx2lsucpd3b8lr9xbw/AA8ZyYq_US-a5fK2-t6ypyo?rlkey=bqnn5koqn7bk3g0hvi7tzldeg&st=ot3xmvxm&dl=1"
+        "https://www.dropbox.com/scl/fi/2thtj89g9cjmad8uscgc0/COMPLETO_012024.TXT?rlkey=dtw65whie2ziy8x53sqfei092&st=33i8rpi8&dl=1",
+        "https://www.dropbox.com/scl/fi/oejvpyqqnqkm0fe03xo2u/COMPLETO_012025.TXT?rlkey=r9jr18xgglsghdtvo6hzuyncw&st=204zs88q&dl=1",
+        "https://www.dropbox.com/scl/fi/jwu9e9o03azraun5btjr3/COMPLETO_022024.TXT?rlkey=rse0pblnigca10yrzx9fubt2b&st=xgw0ydvz&dl=1",
+        "https://www.dropbox.com/scl/fi/phaay4tqo6k9cl7tmmv7w/COMPLETO_022025.TXT?rlkey=guf8wvclj2dfi11rg38ngs3jy&st=mt7t0twd&dl=1",
+        "https://www.dropbox.com/scl/fi/aqmv3summh1qvu5eui630/COMPLETO_032024.TXT?rlkey=yly86q1ggh6ls6g5lttcqild9&st=r9qmx42i&dl=1",
+        "https://www.dropbox.com/scl/fi/2yxg3e88ldidszijj6h14/COMPLETO_032025.TXT?rlkey=qxkdybcetym19wy98t1kfwm0e&st=sgdp8ql5&dl=1",
+        "https://www.dropbox.com/scl/fi/xh626k6froeqt5nf2bmdm/COMPLETO_042024.TXT?rlkey=vq4pk6l7r1yltz81vrs86rdyg&st=e30dg962&dl=1",
+        "https://www.dropbox.com/scl/fi/rktfcui7v763abd0uklqj/COMPLETO_042025.TXT?rlkey=lc1bsy5iu3lazqozegvs0jht5&st=6v0a0ndk&dl=1",
+        "https://www.dropbox.com/scl/fi/jb6t1kf34ds2o7r37s5nt/COMPLETO_052024.TXT?rlkey=v521r07u5zo2xm51baki541s5&st=t4qzlv95&dl=1",
+        "https://www.dropbox.com/scl/fi/dml1so4mlihqyemltrurw/COMPLETO_052025.TXT?rlkey=ut4kzind6ehq1kciaebish2bc&st=k6qgw4u0&dl=1",
+        "https://www.dropbox.com/scl/fi/9assg4wabgga0pp1w7ev1/COMPLETO_062024.TXT?rlkey=dylywpzow96cjhfiseabhq6dl&st=09tdxg6y&dl=1",
+        "https://www.dropbox.com/scl/fi/36af4oulc0u17ir0ff5bq/COMPLETO_062025.TXT?rlkey=8w5o6ccpasdyd1ei0e3wf5ivk&st=08i7mf4a&dl=1",
+        "https://www.dropbox.com/scl/fi/untycpf8v73rdwjpuhmuc/COMPLETO_072024.TXT?rlkey=yfdtqhawmgfb3lreh7eyozn8v&st=wvzzqwty&dl=1",
+        "https://www.dropbox.com/scl/fi/10o1tzwkw10g74ij3aj9k/COMPLETO_072025.TXT?rlkey=jjwxxzd7etj05hfafltsqdto4&st=5feidyil&dl=1",
+        "https://www.dropbox.com/scl/fi/mrefw1v12sse84ubgrs4g/COMPLETO_082024.TXT?rlkey=gvkqqfjlgkszbuhfgj2doru8t&st=4sx2gcg8&dl=1",
+        "https://www.dropbox.com/scl/fi/im8wu9yogq1k8do4uqnki/COMPLETO_082025.TXT?rlkey=063f4008n9zr9iw662zymbz51&st=bnupulsy&dl=1",
+        "https://www.dropbox.com/scl/fi/ahdi9acnjazu6vc1lwq8s/COMPLETO_092024.TXT?rlkey=txzt1vf8tciwfjq8zh6opwl8c&st=7ug09y6m&dl=1",
+        "https://www.dropbox.com/scl/fi/z9ekxx4aj9lnavfcs6x30/COMPLETO_092025.TXT?rlkey=3w2ouxmvpb2rzmkq3whq4j4yr&st=fbvgc228&dl=1",
+        "https://www.dropbox.com/scl/fi/9s8m2jfkeisvdat98r69h/COMPLETO_102024.TXT?rlkey=n9tuh48jg7kjcyj6fy5ad0tpt&st=xl9049aw&dl=1",
+        "https://www.dropbox.com/scl/fi/v6zuzso37koc1cjevjkyi/COMPLETO_102025.TXT?rlkey=9a565f1ichtuih2b35ysdekbo&st=ybzb24eb&dl=1",
+        "https://www.dropbox.com/scl/fi/40jvychhch3j5twcjs6gt/COMPLETO_112024.TXT?rlkey=bu2yrb6m73a7lisj7jj5q2bw8&st=01wt51nr&dl=1",
+        "https://www.dropbox.com/scl/fi/oahhtuelswvw502m7vwcx/COMPLETO_122024.TXT?rlkey=bafcwn7agyrrzva7wdu062ziz&st=de1nxxc2&dl=1"
+
+
     ]
     
     lista_df = []
