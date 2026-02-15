@@ -523,45 +523,40 @@ st.header("📈 Comparativo Evolutivo")
 st.write("Compare tendencias temporales: una cuenta en varios bancos, o varias cuentas de un mismo banco.")
 
 # 1. Filtros específicos para esta sección (en 2 columnas para móvil)
-c_ev1, c_ev2 = st.columns(2)
 
-with c_ev1:
-    # Aquí usamos el universo completo de bancos para comparar
-    bancos_comp = st.multiselect("Bancos a comparar:", 
-                               options=sorted(df["Banco"].unique()),
-                               default=bancos_sel, # Toma por defecto lo que elegiste arriba
-                               key="b_comp")
-
-with c_ev2:
-    # Aquí buscamos las cuentas (puedes usar el buscador de arriba o uno nuevo)
-    # Para simplicidad, usamos una búsqueda global de códigos
-    cuentas_comp = st.multiselect("Cuentas a comparar:", 
-                                options=lista_cuentas_master,
-                                key="c_comp")
+# Aquí usamos el universo completo de bancos para comparar
+bancos_comp = st.multiselect("Bancos a comparar:", 
+                            options=sorted(df["Banco"].unique()),
+                            default=bancos_sel, # Toma por defecto lo que elegiste arriba
+                            key="b_comp")
 
 
+c_ev3, c_ev4 = st.columns(2)
 
-# --- FILTROS DE LA SECCIÓN (Con defaults del encabezado) ---
-with st.expander("🔍 Ajustar filtros de búsqueda para el gráfico", expanded=False):
-    c_ev_f1, c_ev_f2 = st.columns(2)
-    with c_ev_f1:
-        # Toma el nivel0_sel de arriba como default
-        n0_ev = st.selectbox("Masa Patrimonial:", 
-                            ["Todos"] + sorted(df["Nivel_0"].unique().tolist()), 
-                            index=(["Todos"] + sorted(df["Nivel_0"].unique().tolist())).index(nivel0_sel),
-                            key="n0_ev")
-    with c_ev_f2:
-        # Filtra Nivel 2 según Nivel 0 seleccionado aquí
-        df_n2_ev = df[df["Nivel_0"] == n0_ev] if n0_ev != "Todos" else df
-        n2_ev = st.selectbox("Rubro (Nivel 2):", 
-                            ["Todos"] + sorted(df_n2_ev["Nivel_2"].unique().tolist()), 
-                            key="n2_ev")
+with c_ev3:
+    # Toma el nivel0_sel de arriba como default
+    n0_ev = st.selectbox("Masa Patrimonial:", 
+                        ["Todos"] + sorted(df["Nivel_0"].unique().tolist()), 
+                        index=(["Todos"] + sorted(df["Nivel_0"].unique().tolist())).index(nivel0_sel),
+                        default=nivel0_sel
+                        key="n0_ev")
+with c_ev4:
+    # Filtra Nivel 2 según Nivel 0 seleccionado aquí
+    df_n2_ev = df[df["Nivel_0"] == n0_ev] if n0_ev != "Todos" else df
+    n2_ev = st.selectbox("Rubro (Nivel 2):", 
+                        ["Todos"] + sorted(df_n2_ev["Nivel_2"].unique().tolist()), 
+                        key="n2_ev")
     
-    n1_ev = st.selectbox("Nivel de Detalle:", 
-                        ["Todos"] + sorted(df["Nivel_1"].unique().tolist()), 
-                        index=(["Todos"] + sorted(df["Nivel_1"].unique().tolist())).index(nivel1_sel),
-                        key="n1_ev")
+n1_ev = st.selectbox("Nivel de Detalle:", 
+                    ["Todos"] + sorted(df["Nivel_1"].unique().tolist()), 
+                    index=(["Todos"] + sorted(df["Nivel_1"].unique().tolist())).index(nivel1_sel),
+                    key="n1_ev")
 
+# Aquí buscamos las cuentas (puedes usar el buscador de arriba o uno nuevo)
+# Para simplicidad, usamos una búsqueda global de códigos
+cuentas_comp = st.multiselect("Cuentas a comparar:", 
+                            options=lista_cuentas_master,
+                            key="c_comp")
 
 
 if bancos_comp and cuentas_comp:
