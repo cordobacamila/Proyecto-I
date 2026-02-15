@@ -99,8 +99,54 @@ def cargar_datos():
         elif codigo.endswith("000"): return "Totalizador_3"
         else: return "Otro"
 
+    mapeo_n2 = {
+        "11": "Efectivo y depósitos en bancos",
+        "12": "Títulos públicos y privados",
+        "13": "Préstamos",
+        "14": "Otros créditos por intermediación financiera",
+        "15": "Créditos por arrendamientos financieros",
+        "16": "Participaciones en otras sociedades",
+        "17": "Créditos diversos",
+        "18": "Propiedad, planta y equipo",
+        "19": "Bienes diversos",
+        "21": "Activos intangibles",
+        "22": "Filiales en el exterior",
+        "23": "Partidas pendientes de imputación (deudores)",
+        "31": "Depósitos",
+        "32": "Otras obligaciones por intermediación financiera",
+        "33": "Obligaciones diversas",
+        "34": "Provisiones",
+        "35": "Partidas pendientes de imputación (acreedores)",
+        "36": "Obligaciones subordinadas",
+        "41": "Capital social",
+        "42": "Aportes no capitalizado",
+        "43": "Ajustes al patrimonio",
+        "44": "Reserva de utilidades",
+        "45": "Resultados no asignados",
+        "46": "Otros resultados integrales acumulados",
+        "51": "Ingresos financieros",
+        "52": "Egresos financieros",
+        "53": "Cargos por incobrabilidad",
+        "54": "Ingresos por servicios",
+        "55": "Egresos por servicios",
+        "56": "Gastos de administración",
+        "57": "Utilidades diversas",
+        "58": "Perdidas diversas",
+        "59": "Resultado de filiales en el exterior",
+        "61": "Impuesto a las ganancias",
+        "62": "Resultado monetario",
+        "65": "Otros resultados integrales (ORI)",
+        "71": "PFB - Deudoras",
+        "72": "PFB - Acreedoras"
+    }
+
+      
     df['Nivel_0'] = df['Codigo'].apply(clasificar_nivel_0)
     df['Nivel_1'] = df['Codigo'].apply(clasificar_nivel_1)
+    df['Nivel_2'] = df['Codigo'].str[:2].map(mapeo_n2).fillna("Otros")
+
+
+
     return df
 
 # --- CARGA DE DATOS ---
@@ -132,26 +178,53 @@ with st.expander("🎯 **Configurar Filtros de Entidades y Cuentas**", expanded=
 
 
 
-    # Filtros en 2 columnas para iPhone (en lugar de 4 amontonadas)
+        # --- SECCIÓN DE FILTROS (OPTIMIZADA PARA MÓVIL CON NIVEL 2) ---
+
+    # Fila 1: Tiempo
     c_f1, c_f2 = st.columns(2)
     with c_f1:
         año_sel = st.selectbox("Año:", sorted(df["Año"].unique(), reverse=True))
     with c_f2:
         mes_sel = st.selectbox("Mes:", sorted(df[df["Año"] == año_sel]["Mes"].unique()))
 
+    # Fila 2: Clasificación Principal y Rubros (Nivel 0 y Nivel 2)
     c_f3, c_f4 = st.columns(2)
     with c_f3:
         nivel0_sel = st.selectbox("Masa Patrimonial:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
+
     with c_f4:
-        nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
+        # Filtramos las opciones de Nivel 2 según la Masa seleccionada (Nivel 0)
+        df_n2_opc = df.copy()
+        if nivel0_sel != "Todos":
+            df_n2_opc = df_n2_opc[df_n2_opc["Nivel_0"] == nivel0_sel]
+        
+        nivel2_sel = st.selectbox("Rubro (Nivel 2):", ["Todos"] + sorted(df_n2_opc["Nivel_2"].unique().tolist()))
 
-    # Filtro de Cuentas (Full width para touch) # Cuentas (Mostrará solo el nombre más reciente de cada código)
+    # Fila 3: Nivel de Detalle (Opcional, lo dejamos solo en una fila o compartido)
+    nivel1_sel = st.selectbox("Nivel de Detalle (Totales):", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
+
+    # --- LÓGICA FILTRADA PARA EL MULTISELECT DE CUENTAS ---
     df_opc = df.copy()
-    if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
 
+    # Aplicamos los 3 niveles de filtro en cascada para que la lista de cuentas sea corta y útil
+    if nivel0_sel != "Todos": 
+        df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
+
+    if nivel2_sel != "Todos": 
+        df_opc = df_opc[df_opc["Nivel_2"] == nivel2_sel]
+
+    if nivel1_sel != "Todos": 
+        df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
+
+    # Generamos la lista de cuentas final
     lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
-    cuentas_sel_list = st.multiselect("🔢 Cuentas (Última denominación):", 
-                                    options=lista_cuentas_master)
+
+    # Filtro de Cuentas (Full width para touch)
+    cuentas_sel_list = st.multiselect(
+        "🔢 Cuentas (Filtradas por Rubro):", 
+        options=lista_cuentas_master,
+        placeholder="Seleccione cuenta(s)..."
+    )
 
 # aca termina el expander-----------
 
