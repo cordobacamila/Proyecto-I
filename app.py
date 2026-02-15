@@ -553,34 +553,39 @@ n1_ev = st.selectbox("Nivel de Detalle:",
 
 # Aquí buscamos las cuentas (puedes usar el buscador de arriba o uno nuevo)
 # Para simplicidad, usamos una búsqueda global de códigos
+df_ev_opc = df.copy()
+if n0_ev != "Todos": 
+    df_ev_opc = df_ev_opc[df_ev_opc["Nivel_0"] == n0_ev]
+if n2_ev != "Todos": 
+    df_ev_opc = df_ev_opc[df_ev_opc["Nivel_2"] == n2_ev]
+if n1_ev != "Todos": 
+    df_ev_opc = df_ev_opc[df_ev_opc["Nivel_1"] == n1_ev]
+
+# Generamos la lista de opciones basada en los filtros anteriores
+opciones_cuentas_ev = sorted((df_ev_opc["Codigo"] + " - " + df_ev_opc["Cuenta"]).unique())
+
+# 3. Selector de Cuentas (Ahora dinámico)
 cuentas_comp = st.multiselect("Cuentas a comparar:", 
-                            options=lista_cuentas_master,
+                            options=opciones_cuentas_ev, # <--- Ahora usa la lista filtrada
                             key="c_comp")
 
-
+# --- PROCESAMIENTO DEL GRÁFICO ---
 if bancos_comp and cuentas_comp:
-    # Extraemos solo los códigos
     codigos_comp = [c.split(" - ")[0] for c in cuentas_comp]
+    df_ev_final = df[(df["Banco"].isin(bancos_comp)) & (df["Codigo"].isin(codigos_comp))].copy()
     
-    # Filtramos el dataframe original
-    df_ev = df[(df["Banco"].isin(bancos_comp)) & (df["Codigo"].isin(codigos_comp))].copy()
-    
-    # Creamos una columna combinada para la leyenda del gráfico
-    # Si es un solo banco, mostramos las cuentas. Si es una sola cuenta, mostramos los bancos.
+    # Etiqueta inteligente
     if len(bancos_comp) == 1:
-        df_ev["Etiqueta"] = df_ev["Cuenta"]
+        df_ev_final["Etiqueta"] = df_ev_final["Cuenta"]
     elif len(codigos_comp) == 1:
-        df_ev["Etiqueta"] = df_ev["Banco"]
+        df_ev_final["Etiqueta"] = df_ev_final["Banco"]
     else:
-        df_ev["Etiqueta"] = df_ev["Banco"] + " (" + df_ev["Codigo"] + ")"
+        df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
 
-    # Pivotamos para el gráfico: Índice = Fecha, Columnas = Etiqueta, Valores = Saldo
-    df_plot_ev = df_ev.pivot_table(index="Fecha", columns="Etiqueta", values="Saldo_Act", aggfunc='sum').sort_index()
+    df_plot_ev = df_ev_final.pivot_table(index="Fecha", columns="Etiqueta", values="Saldo_Act", aggfunc='sum').sort_index()
 
-    # Mostramos el gráfico
     st.line_chart(df_plot_ev, use_container_width=True)
     
-    # Tabla de datos opcional
     with st.expander("Ver tabla de datos evolutivos"):
         st.dataframe(df_plot_ev.style.format(formato_ar), use_container_width=True)
 else:
