@@ -118,49 +118,42 @@ with st.sidebar:
 
 
 # --- SECCIÓN DE FILTROS (OPTIMIZADA PARA MÓVIL) ---
-st.subheader("🏢 Entidades Financieras")
-subtitulo_placeholder = st.empty()   #se completa despues de haber seleccionado los bancos
+st.subheader("📊 **Entidades Financieras**")
 
 
-
-# Entidades (Mostrará solo el nombre más reciente de cada una)
-lista_bancos_master = sorted(df["Banco"].unique())
-bancos_sel = st.multiselect("🏢 Entidades Financieras:", 
-                            options=lista_bancos_master, 
-                            default=[lista_bancos_master[0]] if lista_bancos_master else [])
-
-
-# Creamos el subtítulo dinámico
-if bancos_sel:
-    nombres = ", ".join(bancos_sel)
-    if len(nombres) > 60: nombres = nombres[:57] + "..."
-    subtitulo_placeholder.markdown(f"**Seleccionadas:** <span style='color: #ff4b4b;'>{nombres}</span>", unsafe_allow_html=True)
-else:
-    subtitulo_placeholder.caption("Ninguna entidad seleccionada")
+with st.expander("🎯 **Configurar Filtros de Entidades y Cuentas**", expanded=True):
+    
+    # Entidades (Mostrará solo el nombre más reciente de cada una)
+    lista_bancos_master = sorted(df["Banco"].unique())
+    bancos_sel = st.multiselect("🏢 Entidades Financieras:", 
+                                options=lista_bancos_master, 
+                                default=[lista_bancos_master[0]] if lista_bancos_master else [])
 
 
 
 
-# Filtros en 2 columnas para iPhone (en lugar de 4 amontonadas)
-c_f1, c_f2 = st.columns(2)
-with c_f1:
-    año_sel = st.selectbox("Año:", sorted(df["Año"].unique(), reverse=True))
-with c_f2:
-    mes_sel = st.selectbox("Mes:", sorted(df[df["Año"] == año_sel]["Mes"].unique()))
+    # Filtros en 2 columnas para iPhone (en lugar de 4 amontonadas)
+    c_f1, c_f2 = st.columns(2)
+    with c_f1:
+        año_sel = st.selectbox("Año:", sorted(df["Año"].unique(), reverse=True))
+    with c_f2:
+        mes_sel = st.selectbox("Mes:", sorted(df[df["Año"] == año_sel]["Mes"].unique()))
 
-c_f3, c_f4 = st.columns(2)
-with c_f3:
-    nivel0_sel = st.selectbox("Masa Patrimonial:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
-with c_f4:
-    nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
+    c_f3, c_f4 = st.columns(2)
+    with c_f3:
+        nivel0_sel = st.selectbox("Masa Patrimonial:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
+    with c_f4:
+        nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
 
-# Filtro de Cuentas (Full width para touch) # Cuentas (Mostrará solo el nombre más reciente de cada código)
-df_opc = df.copy()
-if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
+    # Filtro de Cuentas (Full width para touch) # Cuentas (Mostrará solo el nombre más reciente de cada código)
+    df_opc = df.copy()
+    if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
 
-lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
-cuentas_sel_list = st.multiselect("🔢 Cuentas (Última denominación):", 
-                                 options=lista_cuentas_master)
+    lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
+    cuentas_sel_list = st.multiselect("🔢 Cuentas (Última denominación):", 
+                                    options=lista_cuentas_master)
+
+# aca termina el expander-----------
 
 # --- LÓGICA DE COMPARATIVO ---
 try:
