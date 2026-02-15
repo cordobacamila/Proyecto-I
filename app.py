@@ -10,6 +10,7 @@ st.set_page_config(page_title="BCRA Entidades Financieras", layout="wide")
 def formato_ar(valor):
     return "{:,.2f}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
 
+
 # --- CARGA DE DATOS CORREGIDA ---
 @st.cache_data(ttl=300) # Se actualiza cada 5 min
 def cargar_datos():
@@ -114,14 +115,31 @@ with st.sidebar:
     if st.button("🔄 Limpiar Todos los Filtros"):
         st.rerun()
 
+
+
 # --- SECCIÓN DE FILTROS (OPTIMIZADA PARA MÓVIL) ---
-st.subheader("Configuración de Consulta")
+st.subheader("🏢 Entidades Financieras")
+subtitulo_placeholder = st.empty()   #se completa despues de haber seleccionado los bancos
+
+
 
 # Entidades (Mostrará solo el nombre más reciente de cada una)
 lista_bancos_master = sorted(df["Banco"].unique())
 bancos_sel = st.multiselect("🏢 Entidades Financieras:", 
                             options=lista_bancos_master, 
                             default=[lista_bancos_master[0]] if lista_bancos_master else [])
+
+
+# Creamos el subtítulo dinámico
+if bancos_sel:
+    nombres = ", ".join(bancos_sel)
+    if len(nombres) > 60: nombres = nombres[:57] + "..."
+    subtitulo_placeholder.markdown(f"**Seleccionadas:** <span style='color: #ff4b4b;'>{nombres}</span>", unsafe_allow_html=True)
+else:
+    subtitulo_placeholder.caption("Ninguna entidad seleccionada")
+
+
+
 
 # Filtros en 2 columnas para iPhone (en lugar de 4 amontonadas)
 c_f1, c_f2 = st.columns(2)
