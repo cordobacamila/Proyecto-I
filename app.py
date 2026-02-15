@@ -539,6 +539,31 @@ with c_ev2:
                                 options=lista_cuentas_master,
                                 key="c_comp")
 
+
+
+# --- FILTROS DE LA SECCIÓN (Con defaults del encabezado) ---
+with st.expander("🔍 Ajustar filtros de búsqueda para el gráfico", expanded=False):
+    c_ev_f1, c_ev_f2 = st.columns(2)
+    with c_ev_f1:
+        # Toma el nivel0_sel de arriba como default
+        n0_ev = st.selectbox("Masa Patrimonial:", 
+                            ["Todos"] + sorted(df["Nivel_0"].unique().tolist()), 
+                            index=(["Todos"] + sorted(df["Nivel_0"].unique().tolist())).index(nivel0_sel),
+                            key="n0_ev")
+    with c_ev_f2:
+        # Filtra Nivel 2 según Nivel 0 seleccionado aquí
+        df_n2_ev = df[df["Nivel_0"] == n0_ev] if n0_ev != "Todos" else df
+        n2_ev = st.selectbox("Rubro (Nivel 2):", 
+                            ["Todos"] + sorted(df_n2_ev["Nivel_2"].unique().tolist()), 
+                            key="n2_ev")
+    
+    n1_ev = st.selectbox("Nivel de Detalle:", 
+                        ["Todos"] + sorted(df["Nivel_1"].unique().tolist()), 
+                        index=(["Todos"] + sorted(df["Nivel_1"].unique().tolist())).index(nivel1_sel),
+                        key="n1_ev")
+
+
+
 if bancos_comp and cuentas_comp:
     # Extraemos solo los códigos
     codigos_comp = [c.split(" - ")[0] for c in cuentas_comp]
@@ -553,7 +578,7 @@ if bancos_comp and cuentas_comp:
     elif len(codigos_comp) == 1:
         df_ev["Etiqueta"] = df_ev["Banco"]
     else:
-        df_ev["Etiqueta"] = df_ev["Banco"] + " - " + df_ev["Cuenta"]
+        df_ev["Etiqueta"] = df_ev["Banco"] + " (" + df_ev["Codigo"] + ")"
 
     # Pivotamos para el gráfico: Índice = Fecha, Columnas = Etiqueta, Valores = Saldo
     df_plot_ev = df_ev.pivot_table(index="Fecha", columns="Etiqueta", values="Saldo_Act", aggfunc='sum').sort_index()
