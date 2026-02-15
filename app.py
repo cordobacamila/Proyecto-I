@@ -513,3 +513,56 @@ if matriz_data:
         size=50
     )
     st.caption("Eje X: Liquidez (Disponibilidades/Depósitos) | Eje Y: Solvencia (PN/Activo)")
+
+
+
+
+# --- SECCIÓN: ANÁLISIS EVOLUTIVO COMPARATIVO ---
+st.divider()
+st.header("📈 Comparativo Evolutivo")
+st.write("Compare tendencias temporales: una cuenta en varios bancos, o varias cuentas de un mismo banco.")
+
+# 1. Filtros específicos para esta sección (en 2 columnas para móvil)
+c_ev1, c_ev2 = st.columns(2)
+
+with c_ev1:
+    # Aquí usamos el universo completo de bancos para comparar
+    bancos_comp = st.multiselect("Bancos a comparar:", 
+                               options=sorted(df["Banco"].unique()),
+                               default=bancos_sel, # Toma por defecto lo que elegiste arriba
+                               key="b_comp")
+
+with c_ev2:
+    # Aquí buscamos las cuentas (puedes usar el buscador de arriba o uno nuevo)
+    # Para simplicidad, usamos una búsqueda global de códigos
+    cuentas_comp = st.multiselect("Cuentas a comparar:", 
+                                options=lista_cuentas_master,
+                                key="c_comp")
+
+if bancos_comp and cuentas_comp:
+    # Extraemos solo los códigos
+    codigos_comp = [c.split(" - ")[0] for c in cuentas_comp]
+    
+    # Filtramos el dataframe original
+    df_ev = df[(df["Banco"].isin(bancos_comp)) & (df["Codigo"].isin(codigos_comp))].copy()
+    
+    # Creamos una columna combinada para la leyenda del gráfico
+    # Si es un solo banco, mostramos las cuentas. Si es una sola cuenta, mostramos los bancos.
+    if len(bancos_comp) == 1:
+        df_ev["Etiqueta"] = df_ev["Cuenta"]
+    elif len(codigos_comp) == 1:
+        df_ev["Etiqueta"] = df_ev["Banco"]
+    else:
+        df_ev["Etiqueta"] = df_ev["Banco"] + " - " + df_ev["Cuenta"]
+
+    # Pivotamos para el gráfico: Índice = Fecha, Columnas = Etiqueta, Valores = Saldo
+    df_plot_ev = df_ev.pivot_table(index="Fecha", columns="Etiqueta", values="Saldo_Act", aggfunc='sum').sort_index()
+
+    # Mostramos el gráfico
+    st.line_chart(df_plot_ev, use_container_width=True)
+    
+    # Tabla de datos opcional
+    with st.expander("Ver tabla de datos evolutivos"):
+        st.dataframe(df_plot_ev.style.format(formato_ar), use_container_width=True)
+else:
+    st.info("Seleccione al menos un banco y una cuenta para ver la evolución.")
