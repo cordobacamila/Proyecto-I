@@ -538,7 +538,6 @@ with c_ev3:
     n0_ev = st.selectbox("Masa Patrimonial:", 
                         ["Todos"] + sorted(df["Nivel_0"].unique().tolist()), 
                         index=(["Todos"] + sorted(df["Nivel_0"].unique().tolist())).index(nivel0_sel),
-                        default=nivel0_sel
                         key="n0_ev")
 with c_ev4:
     # Filtra Nivel 2 según Nivel 0 seleccionado aquí
