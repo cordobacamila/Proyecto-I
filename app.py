@@ -56,6 +56,20 @@ def cargar_datos():
         
     df = pd.concat(lista_df, ignore_index=True)
     
+    # 1. NORMALIZAR NOMBRES DE BANCOS (Tomar el último según la Fecha)
+    # Ordenamos por fecha para que el más reciente quede al final
+    df = df.sort_values("Fecha")
+    
+    # Creamos un mapeo: ID -> Último Nombre conocido
+    mapeo_bancos = df.drop_duplicates('ID', keep='last').set_index('ID')['Banco'].to_dict()
+    # Aplicamos el nombre más nuevo a todos los registros con ese ID
+    df['Banco'] = df['ID'].map(mapeo_bancos)
+
+    # 2. NORMALIZAR NOMBRES DE CUENTAS (Tomar el último según la Fecha)
+    # Hacemos lo mismo para el Codigo de cuenta
+    mapeo_cuentas = df.drop_duplicates('Codigo', keep='last').set_index('Codigo')['Cuenta'].to_dict()
+    df['Cuenta'] = df['Codigo'].map(mapeo_cuentas)
+    
     for col in ['Banco', 'Cuenta', 'Fecha', 'ID', 'Codigo']:
         df[col] = df[col].astype(str).str.replace('"', '').str.strip()
 
@@ -101,11 +115,13 @@ with st.sidebar:
         st.rerun()
 
 # --- SECCIÓN DE FILTROS (OPTIMIZADA PARA MÓVIL) ---
-st.header(f"📊 Detalle de Cuentas y Variaciones")
+st.subheader("Configuración de Consulta")
 
-bancos_sel = st.multiselect("🏢 Seleccionar Entidades:", 
-                            options=sorted(df["Banco"].unique()), 
-                            default=[sorted(df["Banco"].unique())[0]])
+# Entidades (Mostrará solo el nombre más reciente de cada una)
+lista_bancos_master = sorted(df["Banco"].unique())
+bancos_sel = st.multiselect("🏢 Entidades Financieras:", 
+                            options=lista_bancos_master, 
+                            default=[lista_bancos_master[0]] if lista_bancos_master else [])
 
 # Filtros en 2 columnas para iPhone (en lugar de 4 amontonadas)
 c_f1, c_f2 = st.columns(2)
@@ -120,12 +136,13 @@ with c_f3:
 with c_f4:
     nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
 
-# Filtro de Cuentas (Full width para touch)
+# Filtro de Cuentas (Full width para touch) # Cuentas (Mostrará solo el nombre más reciente de cada código)
 df_opc = df.copy()
 if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
-if nivel1_sel != "Todos": df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
-lista_cuentas_fmt = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
-cuentas_sel_list = st.multiselect("🔢 Seleccionar Cuenta(s):", options=lista_cuentas_fmt)
+
+lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
+cuentas_sel_list = st.multiselect("🔢 Cuentas (Última denominación):", 
+                                 options=lista_cuentas_master)
 
 # --- LÓGICA DE COMPARATIVO ---
 try:
