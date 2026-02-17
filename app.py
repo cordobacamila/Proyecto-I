@@ -108,9 +108,9 @@ def cargar_datos():
 
     def clasificar_nivel_1(codigo):
         if not codigo: return "Otro"
-        if codigo.endswith("00000"): return "Totalizador_1"
-        if codigo==("650000"): return "Totalizador_1"
-        elif codigo.endswith("0000"): return "Totalizador_2"
+        if codigo.endswith("0000") and codigo != "650000":return "Totalizador_2"
+        elif codigo.endswith("00000"): return "Totalizador_1"
+        elif codigo==("650000"): return "Totalizador_1"
         elif codigo.endswith("000"): return "Totalizador_3"
         elif codigo==("511100"): return "Totalizador_4"
         elif codigo==("511500"): return "Totalizador_4"
