@@ -548,7 +548,7 @@ if cuentas_sel_list and p_inicio and p_fin:
             
             # 3. Unimos el Volumen del Sistema a la tabla pivot
             df_ms_completa = df_ms_pivot.copy()
-            df_ms_completa["Total Sistema (Volumen)"] = df_totales["Total_Sistema"]
+            df_ms_completa["Total Sistema"] = df_totales["Total_Sistema"]
             
             # 4. Aseguramos el orden cronológico antes de mostrar
             df_ms_completa = df_ms_completa.reindex(df_totales.sort_values("Periodo_DT").index)
