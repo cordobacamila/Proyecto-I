@@ -257,336 +257,63 @@ def color_variacion(val):
     elif val > 0: return 'color: #008000;'
     return 'color: black;'
 
-st.subheader("📝 Detalle por Cuenta")
-df_styled = (df_res[["Banco", "Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]]
-             .style.format({"Saldo_Act": "{:,.2f}", "Var. Absoluta": "{:,.2f}", "Var. %": "{:.2f}%"})
+# --- TABLA RESUMEN CON JERARQUÍA Y TOTAL GENERAL ---
+st.divider()
+st.subheader("📝 Balance Contable por Niveles")
+
+df_res = df_comp.copy()
+
+# 1. Aplicamos filtros de los selectores
+if nivel0_sel != "Todos": 
+    df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
+if nivel2_sel != "Todos": 
+    df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
+if nivel1_sel != "Todos": 
+    df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
+if cuentas_sel_list:
+    codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
+    df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
+
+# 2. Agrupamos para la vista jerárquica
+df_pivot = df_res.groupby(["Nivel_0", "Nivel_2", "Cuenta"]).agg({
+    "Saldo_Act": "sum",
+    "Var. Absoluta": "sum"
+}).reset_index()
+
+# 3. Calculamos la fila de TOTAL GENERAL
+total_saldo = df_pivot["Saldo_Act"].sum()
+total_var_abs = df_pivot["Var. Absoluta"].sum()
+
+# Evitar división por cero en el porcentaje del total
+saldo_anterior_total = total_saldo - total_var_abs
+total_var_pct = (total_var_abs / abs(saldo_anterior_total) * 100) if saldo_anterior_total != 0 else 0
+
+# Creamos el DataFrame de una fila para el total
+df_total = pd.DataFrame({
+    "Nivel_0": ["TOTAL"],
+    "Nivel_2": ["GENERAL"],
+    "Cuenta": ["-"],
+    "Saldo_Act": [total_saldo],
+    "Var. Absoluta": [total_var_abs]
+})
+
+# 4. Unimos la tabla con su total
+df_final_con_total = pd.concat([df_pivot, df_total], ignore_index=True)
+
+# 5. Calculamos Var % para todas las filas (incluyendo el total)
+df_final_con_total['Var. %'] = df_final_con_total.apply(
+    lambda x: (x['Var. Absoluta'] / abs(x['Saldo_Act'] - x['Var. Absoluta']) * 100) 
+    if (x['Saldo_Act'] - x['Var. Absoluta']) != 0 else 0, axis=1
+)
+
+# 6. Estilismo y Visualización
+def resaltar_total(s):
+    return ['font-weight: bold; background-color: #f0f2f6' if s.Nivel_0 == "TOTAL" else '' for _ in s]
+
+df_styled = (df_final_con_total.style
+             .format({"Saldo_Act": "{:,.2f}", "Var. Absoluta": "{:,.2f}", "Var. %": "{:.2f}%"})
+             .apply(resaltar_total, axis=1)
              .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
 
 st.dataframe(df_styled, use_container_width=True, hide_index=True)
 
-# --- RATIOS DE SALUD BANCARIA (OPTIMIZADO MÓVIL) ---
-st.divider()
-st.subheader("🏥 Ratios de Salud Bancaria")
-try:
-    # (Lógica de cálculos que ya tenías...)
-    disp_act = df_comp[df_comp['Codigo'] == "110000"]['Saldo_Act'].sum()
-    depo_act = abs(df_comp[df_comp['Codigo'] == "210000"]['Saldo_Act'].sum())
-    prest_act = df_comp[df_comp['Codigo'] == "120000"]['Saldo_Act'].sum()
-    act_act = df_comp[df_comp['Codigo'] == "100000"]['Debe'].sum()
-    pn_act = act_act - df_comp[df_comp['Codigo'] == "300000"]['Haber'].sum()
-
-    disp_ant = df_comp[df_comp['Codigo'] == "110000"]['Saldo_Act_Ant'].sum()
-    depo_ant = abs(df_comp[df_comp['Codigo'] == "210000"]['Saldo_Act_Ant'].sum())
-    prest_ant = df_comp[df_comp['Codigo'] == "120000"]['Saldo_Act_Ant'].sum()
-    act_ant = df_comp[df_comp['Codigo'] == "100000"]['Saldo_Act_Ant'].sum()
-    pn_ant = act_ant - df_comp[df_comp['Codigo'] == "300000"]['Saldo_Act_Ant'].sum()
-
-    r_liq_act, r_liq_ant = (disp_act/depo_act*100 if depo_act!=0 else 0), (disp_ant/depo_ant*100 if depo_ant!=0 else 0)
-    r_solv_act, r_solv_ant = (pn_act/act_act*100 if act_act!=0 else 0), (pn_ant/act_ant*100 if act_ant!=0 else 0)
-    
-    # En iPhone, estas 3 columnas se verán una debajo de otra
-    m1, m2, m3 = st.columns([1, 1, 1])
-    m1.metric("Liquidez", f"{r_liq_act:.2f}%", f"{r_liq_act - r_liq_ant:.2f}%")
-    m2.metric("Solvencia", f"{r_solv_act:.2f}%", f"{r_solv_act - r_solv_ant:.2f}%")
-    m3.metric("Préstamos/Activo", f"{(prest_act/act_act*100):.2f}%")
-except:
-    st.info("Datos insuficientes para ratios.")
-
-
-
-
-
-# --- MARKET SHARE REAL CON MULTI-SELECCIÓN, EVOLUTIVO Y TABLA DE CRECIMIENTO ---
-st.divider()
-st.header("🍰 Análisis de Participación de Mercado (Market Share)")
-st.write("Analice la cuota de mercado y el volumen total del sistema para las cuentas elegidas.")
-
-# --- BLOQUE DE FILTROS PARA EL SHARE ---
-col_sh1, col_sh2, col_sh3 = st.columns([1, 1, 2])
-
-with col_sh1:
-    n0_share = st.selectbox("Filtrar por Masa Patrimonial:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()), key="n0_sh")
-with col_sh2:
-    n1_share = st.selectbox("Filtrar por Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()), key="n1_sh")
-
-df_opciones = df.copy()
-if n0_share != "Todos":
-    df_opciones = df_opciones[df_opciones["Nivel_0"] == n0_share]
-if n1_share != "Todos":
-    df_opciones = df_opciones[df_opciones["Nivel_1"] == n1_share]
-
-opciones_cuentas = sorted((df_opciones["Codigo"] + " - " + df_opciones["Cuenta"]).unique())
-
-with col_sh3:
-    cuentas_share_multi = st.multiselect(
-        "Seleccione Cuenta(s) para el análisis:", 
-        options=opciones_cuentas,
-        default=[opciones_cuentas[0]] if opciones_cuentas else [],
-        key="ms_share_real"
-    )
-
-if cuentas_share_multi:
-    codigos_sh = [c.split(" - ")[0] for c in cuentas_share_multi]
-    
-    # --- LÓGICA DE CÁLCULO ACTUAL ---
-    df_universo_act = df[(df["Fecha"] == año_sel + mes_sel) & (df["Codigo"].isin(codigos_sh))]
-    total_por_banco_sistema = df_universo_act.groupby("Banco")["Saldo_Act"].apply(lambda x: x.abs().sum()).reset_index()
-    total_sistema_act = total_por_banco_sistema["Saldo_Act"].sum()
-    
-    if total_sistema_act > 0:
-        st.subheader(f"📊 Situación al {mes_sel}/{año_sel}")
-        
-        df_share_sel_act = total_por_banco_sistema[total_por_banco_sistema["Banco"].isin(bancos_sel)].copy()
-        df_share_sel_act['% Share'] = (df_share_sel_act['Saldo_Act'] / total_sistema_act) * 100
-        
-        c_g1, c_g2 = st.columns([2, 1])
-        with c_g1:
-            st.bar_chart(df_share_sel_act.set_index('Banco')['% Share'], horizontal=True)
-        
-        with c_g2:
-            st.metric("Saldo Total Sistema", f"$ {formato_ar(total_sistema_act)}")
-            suma_p = df_share_sel_act['% Share'].sum()
-            st.metric("Share Combinado Bancos Sel.", f"{suma_p:.2f}%")
-
-        # --- LÓGICA EVOLUTIVA ---
-        df_solo_cuentas = df[df["Codigo"].isin(codigos_sh)]
-        totales_sistema_hist = {}
-        df_hist_share = []
-        
-        for fecha, grupo_fecha in df_solo_cuentas.groupby("Fecha"):
-            total_mkt_periodo = grupo_fecha['Saldo_Act'].abs().sum()
-            totales_sistema_hist[fecha] = total_mkt_periodo
-            
-            if total_mkt_periodo > 0:
-                bancos_en_fecha = grupo_fecha[grupo_fecha["Banco"].isin(bancos_sel)].groupby("Banco")["Saldo_Act"].apply(lambda x: x.abs().sum()).reset_index()
-                for _, fila in bancos_en_fecha.iterrows():
-                    df_hist_share.append({
-                        "Periodo": fecha,
-                        "Banco": fila["Banco"],
-                        "Market Share %": (fila["Saldo_Act"] / total_mkt_periodo) * 100
-                    })
-        
-        if df_hist_share:
-            st.subheader("📈 Tendencias del Mercado")
-            
-            # 1. Gráfico de Participación (%)
-            df_evol_share = pd.DataFrame(df_hist_share).sort_values("Periodo")
-            df_plot_share = df_evol_share.pivot(index="Periodo", columns="Banco", values="Market Share %")
-            st.write("**Evolución de Participación Bancaria (%)**")
-            st.line_chart(df_plot_share)
-            
-            # 2. Gráfico de Volumen del Sistema
-            st.write("**Evolución del Volumen Total del Sistema ($)**")
-            df_total_sys_series = pd.Series(totales_sistema_hist).sort_index()
-            st.bar_chart(df_total_sys_series)
-
-            # --- TABLA DE DATOS FINAL (Incluye Crecimiento MoM) ---
-            with st.expander("📄 Ver Reporte Detallado y Crecimiento", expanded=False):
-                # Calculamos el crecimiento MoM solo para la tabla
-                df_growth = df_total_sys_series.pct_change() * 100
-                
-                df_tabla_final = df_plot_share.copy()
-                df_tabla_final["Total Sistema ($)"] = df_total_sys_series
-                df_tabla_final["Crecimiento MoM (%)"] = df_growth
-                
-                # Formateo de la tabla
-                format_dict = {col: "{:.2f}%".format for col in df_plot_share.columns}
-                format_dict["Total Sistema ($)"] = lambda x: f"$ {formato_ar(x)}"
-                format_dict["Crecimiento MoM (%)"] = "{:.2f}%".format
-                
-                st.dataframe(
-                    df_tabla_final.style.format(format_dict),
-                    use_container_width=True
-                )
-                st.caption("MoM (%) = Month-over-Month: Tasa de crecimiento porcentual del volumen total respecto al mes anterior.")
-    else:
-        st.warning("No hay datos para la selección actual.")
-else:
-    st.info("Seleccione al menos una cuenta para iniciar el análisis.")
-
-
-
-    # --- MÓDULO DE ALERTAS TEMPRANAS (RADAR GLOBAL DEL SISTEMA) ---
-st.divider()
-st.header("⚠️ Radar Global de Alertas (Todo el Sistema)")
-st.caption("Análisis de riesgos sobre el universo completo de entidades basándose en saldos nominales.")
-
-# 1. Definimos todos los bancos disponibles en el periodo actual
-todos_los_bancos = df[df["Fecha"] == año_sel + mes_sel]["Banco"].unique()
-
-alertas_globales = []
-
-for b in todos_los_bancos:
-    b_datos_act = df[(df["Banco"] == b) & (df["Año"] == año_sel) & (df["Mes"] == mes_sel)]
-    b_datos_ant = df[(df["Banco"] == b) & (df["Año"] == año_ant) & (df["Mes"] == mes_ant)]
-    
-    if not b_datos_act.empty and not b_datos_ant.empty:
-        # --- A. RIESGO DE FONDEO (Depósitos) ---
-        depo_act = abs(b_datos_act[b_datos_act["Codigo"].str.startswith("21")]["Saldo_Act"].sum())
-        depo_ant = abs(b_datos_ant[b_datos_ant["Codigo"].str.startswith("21")]["Saldo_Act"].sum())
-        
-        if depo_ant > 0:
-            var_depo = ((depo_act / depo_ant) - 1) * 100
-            if var_depo < -15:
-                alertas_globales.append({
-                    "Entidad": b, 
-                    "Riesgo": "Fuga de Depósitos", 
-                    "Indicador %": f"{var_depo:.1f}%",
-                    "Numerador (Mes Act)": depo_act,
-                    "Denominador (Mes Ant)": depo_ant,
-                    "Detalle": "Variación MoM de Depósitos Totales"
-                })
-
-        # --- B. RIESGO DE LIQUIDEZ ---
-        disp = b_datos_act[b_datos_act['Codigo'] == "110000"]['Saldo_Act'].sum()
-        r_liq = (disp / depo_act * 100) if depo_act > 0 else 0
-        if r_liq < 12:
-            alertas_globales.append({
-                "Entidad": b, 
-                "Riesgo": "Liquidez Crítica", 
-                "Indicador %": f"{r_liq:.1f}%",
-                "Numerador (Disp)": disp,
-                "Denominador (Depo)": depo_act,
-                "Detalle": "Disponibilidades s/ Depósitos"
-            })
-
-        # --- C. RIESGO DE SOLVENCIA ---
-        act_total = b_datos_act[b_datos_act['Codigo'] == "100000"]['Debe'].sum()
-        pas_total = b_datos_act[b_datos_act['Codigo'] == "300000"]['Haber'].sum()
-        pn = act_total - pas_total
-        r_solv = (pn / act_total * 100) if act_total > 0 else 0
-        if r_solv < 7:
-            alertas_globales.append({
-                "Entidad": b, 
-                "Riesgo": "Solvencia", 
-                "Indicador %": f"{r_solv:.1f}%",
-                "Numerador (PN)": pn,
-                "Denominador (Activo)": act_total,
-                "Detalle": "Patrimonio Neto s/ Activo Total"
-            })
-
-# --- MOSTRAR RESULTADOS DEL RADAR ---
-if alertas_globales:
-    df_alertas = pd.DataFrame(alertas_globales)
-    
-    st.error(f"Se han detectado {len(alertas_globales)} alertas de riesgo en el sistema:")
-    
-    # Formateo de saldos para que la tabla sea legible
-    columnas_saldos = [col for col in df_alertas.columns if "Numerador" in col or "Denominador" in col]
-    
-    st.dataframe(
-        df_alertas.style.format({col: "{:,.2f}" for col in columnas_saldos}),
-        use_container_width=True, 
-        hide_index=True
-    )
-    st.caption("💡 Los montos están expresados en la moneda original de los archivos TXT.")
-else:
-    st.success("✅ Estabilidad detectada: No hay anomalías en el universo completo de entidades.")
-
-
-
-# Preparar datos para el gráfico
-matriz_data = []
-for b in bancos_sel:
-    sub = df_actual[df_actual["Banco"] == b]
-    if not sub.empty:
-        # Cálculos de ratios
-        activo = sub[sub['Codigo'] == "100000"]['Debe'].sum()
-        pasivo = sub[sub['Codigo'] == "300000"]['Haber'].sum()
-        disp = sub[sub['Codigo'] == "110000"]['Saldo_Act'].sum()
-        depo = abs(sub[sub['Codigo'] == "210000"]['Saldo_Act'].sum())
-        
-        liq = (disp / depo * 100) if depo > 0 else 0
-        solv = ((activo - pasivo) / activo * 100) if activo > 0 else 0
-        
-        matriz_data.append({"Banco": b, "Liquidez (%)": liq, "Solvencia (%)": solv})
-
-if matriz_data:
-    df_matriz = pd.DataFrame(matriz_data)
-    
-    # Usamos st.scatter_chart para una visualización rápida y limpia
-    st.scatter_chart(
-        df_matriz,
-        x="Liquidez (%)",
-        y="Solvencia (%)",
-        color="Banco",
-        size=50
-    )
-    st.caption("Eje X: Liquidez (Disponibilidades/Depósitos) | Eje Y: Solvencia (PN/Activo)")
-
-
-
-
-# --- SECCIÓN: ANÁLISIS EVOLUTIVO COMPARATIVO ---
-st.divider()
-st.header("📈 Comparativo Evolutivo")
-st.write("Compare tendencias temporales: una cuenta en varios bancos, o varias cuentas de un mismo banco.")
-
-# 1. Filtros específicos para esta sección (en 2 columnas para móvil)
-
-# Aquí usamos el universo completo de bancos para comparar
-bancos_comp = st.multiselect("Bancos a comparar:", 
-                            options=sorted(df["Banco"].unique()),
-                            default=bancos_sel, # Toma por defecto lo que elegiste arriba
-                            key="b_comp")
-
-
-c_ev3, c_ev4 = st.columns(2)
-
-with c_ev3:
-    # Toma el nivel0_sel de arriba como default
-    n0_ev = st.selectbox("Masa Patrimonial:", 
-                        ["Todos"] + sorted(df["Nivel_0"].unique().tolist()), 
-                        index=(["Todos"] + sorted(df["Nivel_0"].unique().tolist())).index(nivel0_sel),
-                        key="n0_ev")
-with c_ev4:
-    # Filtra Nivel 2 según Nivel 0 seleccionado aquí
-    df_n2_ev = df[df["Nivel_0"] == n0_ev] if n0_ev != "Todos" else df
-    n2_ev = st.selectbox("Rubro (Nivel 2):", 
-                        ["Todos"] + sorted(df_n2_ev["Nivel_2"].unique().tolist()), 
-                        key="n2_ev")
-    
-n1_ev = st.selectbox("Nivel de Detalle:", 
-                    ["Todos"] + sorted(df["Nivel_1"].unique().tolist()), 
-                    index=(["Todos"] + sorted(df["Nivel_1"].unique().tolist())).index(nivel1_sel),
-                    key="n1_ev")
-
-# Aquí buscamos las cuentas (puedes usar el buscador de arriba o uno nuevo)
-# Para simplicidad, usamos una búsqueda global de códigos
-df_ev_opc = df.copy()
-if n0_ev != "Todos": 
-    df_ev_opc = df_ev_opc[df_ev_opc["Nivel_0"] == n0_ev]
-if n2_ev != "Todos": 
-    df_ev_opc = df_ev_opc[df_ev_opc["Nivel_2"] == n2_ev]
-if n1_ev != "Todos": 
-    df_ev_opc = df_ev_opc[df_ev_opc["Nivel_1"] == n1_ev]
-
-# Generamos la lista de opciones basada en los filtros anteriores
-opciones_cuentas_ev = sorted((df_ev_opc["Codigo"] + " - " + df_ev_opc["Cuenta"]).unique())
-
-# 3. Selector de Cuentas (Ahora dinámico)
-cuentas_comp = st.multiselect("Cuentas a comparar:", 
-                            options=opciones_cuentas_ev, # <--- Ahora usa la lista filtrada
-                            key="c_comp")
-
-# --- PROCESAMIENTO DEL GRÁFICO ---
-if bancos_comp and cuentas_comp:
-    codigos_comp = [c.split(" - ")[0] for c in cuentas_comp]
-    df_ev_final = df[(df["Banco"].isin(bancos_comp)) & (df["Codigo"].isin(codigos_comp))].copy()
-    
-    # Etiqueta inteligente
-    if len(bancos_comp) == 1:
-        df_ev_final["Etiqueta"] = df_ev_final["Cuenta"]
-    elif len(codigos_comp) == 1:
-        df_ev_final["Etiqueta"] = df_ev_final["Banco"]
-    else:
-        df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
-
-    df_plot_ev = df_ev_final.pivot_table(index="Fecha", columns="Etiqueta", values="Saldo_Act", aggfunc='sum').sort_index()
-
-    st.line_chart(df_plot_ev, use_container_width=True)
-    
-    with st.expander("Ver tabla de datos evolutivos"):
-        st.dataframe(df_plot_ev.style.format(formato_ar), use_container_width=True)
-else:
-    st.info("Seleccione al menos un banco y una cuenta para ver la evolución.")
