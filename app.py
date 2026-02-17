@@ -340,8 +340,8 @@ df_res = df_res.sort_values("Codigo", ascending=True)
 
 df_styled = (df_res[cols_a_mostrar]
              .style.format({
-                 "Saldo_Act": "{:,.2f}", 
-                 "Var. Absoluta": "{:,.2f}", 
+                 "Saldo_Act": "{:,.0f}", 
+                 "Var. Absoluta": "{:,.0f}", 
                  "Var. %": "{:.2f}%"
              })
              .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
@@ -556,7 +556,7 @@ if cuentas_sel_list and p_inicio and p_fin:
             # 5. Aplicamos formatos diferenciados: % para bancos y número para el Total
             # Creamos un diccionario de formatos dinámico basado en las columnas
             formatos = {col: "{:.2f}%" for col in df_ms_pivot.columns}
-            formatos["Total Sistema (Volumen)"] = "{:,.2f}" # Formato con separador de miles
+            formatos["Total Sistema"] = "{:,.0f}" # Formato con separador de miles
             
             st.dataframe(
                 df_ms_completa.style.format(formatos), 
