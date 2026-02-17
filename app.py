@@ -258,13 +258,13 @@ def color_variacion(val):
     return 'color: black;'
 
 # --- TABLA RESUMEN CON JERARQUÍA Y TOTAL GENERAL ---
-# --- TABLA DE BALANCE ALTA Y JERÁRQUICA (NATIVA) ---
+# --- TABLA ÚNICA JERÁRQUICA Y EXPANDIBLE ---
 st.divider()
-st.subheader("📝 Balance Estructural Detallado")
+st.subheader("📝 Balance Estructural por Niveles")
 
 df_res = df_comp.copy()
 
-# 1. Aplicamos tus filtros (Masa, Rubro, Detalle, etc.)
+# 1. Filtros (mantenemos tu lógica actual)
 if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
 if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
 if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
@@ -272,31 +272,33 @@ if cuentas_sel_list:
     codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
     df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
 
-# 2. Creamos la estructura jerárquica con Pandas
-# Colocamos los niveles como el ÍNDICE de la tabla
-df_pivot = df_res.groupby(["Nivel_0", "Nivel_2", "Cuenta"]).agg({
+# 2. Preparamos el DataFrame con la jerarquía
+# Agrupamos por los tres niveles para crear la estructura de árbol
+df_tree = df_res.groupby(["Nivel_0", "Nivel_2", "Cuenta"]).agg({
     "Saldo_Act": "sum",
     "Var. Absoluta": "sum"
-})
+}).reset_index()
 
-# Calculamos Var %
-df_pivot['Var. %'] = (df_pivot['Var. Absoluta'] / (df_pivot['Saldo_Act'] - df_pivot['Var. Absoluta']).abs() * 100).fillna(0)
+# Calculamos Var % sobre el agrupado
+df_tree['Var. %'] = df_tree.apply(
+    lambda x: (x['Var. Absoluta'] / abs(x['Saldo_Act'] - x['Var. Absoluta']) * 100) 
+    if (x['Saldo_Act'] - x['Var. Absoluta']) != 0 else 0, axis=1
+)
 
-# 3. FILA DE TOTAL GENERAL (Calculada aparte)
-total_general_saldo = df_res["Saldo_Act"].sum()
-total_general_var = df_res["Var. Absoluta"].sum()
-
-# 4. Visualización
-# st.dataframe mostrará la tabla con la altura necesaria para que no haya scroll interno
+# 3. Visualización con st.dataframe y modo de agrupación
+# Nota: Streamlit agrupa automáticamente las celdas repetidas en las primeras columnas
 st.dataframe(
-    df_pivot.style.format({
+    df_tree.style.format({
         "Saldo_Act": "{:,.2f}", 
         "Var. Absoluta": "{:,.2f}", 
         "Var. %": "{:.2f}%"
     }).map(color_variacion, subset=['Var. Absoluta', 'Var. %']),
     use_container_width=True,
-    height=None # Al poner height en None, la tabla crece según la cantidad de datos
+    hide_index=True,
+    # Esta configuración permite que las columnas de niveles se vean como grupos
+    column_order=("Nivel_0", "Nivel_2", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %")
 )
 
-# Resumen de Total al pie
-st.markdown(f"**Total General Seleccionado:** $ {formato_ar(total_general_saldo)} (Var: $ {formato_ar(total_general_var)})")
+# 4. Fila de Total General (Fuera de la tabla para claridad)
+total_s = df_tree["Saldo_Act"].sum()
+st.info(f"**Total General Filtrado:** $ {formato_ar(total_s)}")
