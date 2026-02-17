@@ -530,7 +530,7 @@ if cuentas_sel_list and p_inicio and p_fin:
             markers=True,
             template="plotly_white",
             title="Evolución de Cuota de Mercado (%)",
-            labels={"Market_Share": "% de Participación", "Periodo": "Mes"},
+            labels={"Market_Share": "% Market Share"},
             line_shape="spline" # Líneas suavizadas para share
         )
 
