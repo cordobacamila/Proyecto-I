@@ -539,8 +539,29 @@ if cuentas_sel_list and p_inicio and p_fin:
         st.plotly_chart(fig_ms, use_container_width=True)
 
         with st.expander("Ver tabla de Market Share (%)"):
+            # 1. Creamos la tabla pivot de los bancos (Market Share %)
             df_ms_pivot = df_ms_final.pivot(index="Periodo", columns="Banco", values="Market_Share")
-            st.dataframe(df_ms_pivot.style.format("{:.2f}%"), use_container_width=True)
+            
+            # 2. Obtenemos el Volumen del Sistema por periodo (un valor por mes)
+            # Quitamos duplicados para tener una serie: Periodo -> Total_Sistema
+            df_totales = df_ms_final[["Periodo", "Total_Sistema", "Periodo_DT"]].drop_duplicates().set_index("Periodo")
+            
+            # 3. Unimos el Volumen del Sistema a la tabla pivot
+            df_ms_completa = df_ms_pivot.copy()
+            df_ms_completa["Total Sistema (Volumen)"] = df_totales["Total_Sistema"]
+            
+            # 4. Aseguramos el orden cronológico antes de mostrar
+            df_ms_completa = df_ms_completa.reindex(df_totales.sort_values("Periodo_DT").index)
+            
+            # 5. Aplicamos formatos diferenciados: % para bancos y número para el Total
+            # Creamos un diccionario de formatos dinámico basado en las columnas
+            formatos = {col: "{:.2f}%" for col in df_ms_pivot.columns}
+            formatos["Total Sistema (Volumen)"] = "{:,.2f}" # Formato con separador de miles
+            
+            st.dataframe(
+                df_ms_completa.style.format(formatos), 
+                use_container_width=True
+            )
     else:
         st.warning("No hay datos suficientes para calcular el Market Share.")
 else:
