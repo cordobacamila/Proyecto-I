@@ -483,3 +483,65 @@ if bancos_sel and cuentas_sel_list:
         st.warning("No hay datos para los filtros seleccionados.")
 
     ##
+
+
+st.markdown("---")
+st.subheader("📈 Participación de Mercado (Market Share)")
+
+# --- 1. PREPARACIÓN DE DATOS DE MERCADO ---
+# Usamos el DF original sin filtrar por banco para tener el 'Total Sistema'
+if cuentas_sel_list and p_inicio and p_fin:
+    codigos_ms = [c.split(" - ")[0] for c in cuentas_sel_list]
+    fecha_inf_ms = df[df["Periodo"] == p_inicio]["Periodo_DT"].min()
+    fecha_sup_ms = df[df["Periodo"] == p_fin]["Periodo_DT"].max()
+
+    # Filtramos solo por Cuentas y Fechas (Incluye a todos los bancos del sistema)
+    mask_sistema = (
+        (df["Codigo"].isin(codigos_ms)) & 
+        (df["Periodo_DT"] >= fecha_inf_ms) & 
+        (df["Periodo_DT"] <= fecha_sup_ms)
+    )
+    df_sistema = df[mask_sistema].copy()
+
+    if not df_sistema.empty:
+        # Calculamos el Total del Sistema por cada Periodo
+        total_sistema = df_sistema.groupby(["Periodo", "Periodo_DT"])["Saldo_Act"].sum().reset_index()
+        total_sistema.rename(columns={"Saldo_Act": "Total_Sistema"}, inplace=True)
+
+        # Filtramos los bancos seleccionados por el usuario
+        df_bancos_ms = df_sistema[df_sistema["Banco"].isin(bancos_sel)].copy()
+        
+        # Sumamos las cuentas por Banco y Periodo
+        df_bancos_sum = df_bancos_ms.groupby(["Periodo", "Periodo_DT", "Banco"])["Saldo_Act"].sum().reset_index()
+
+        # Unimos los datos de los bancos con el total del sistema
+        df_ms_final = pd.merge(df_bancos_sum, total_sistema, on=["Periodo", "Periodo_DT"])
+
+        # Calculamos el % de participación
+        df_ms_final["Market_Share"] = (df_ms_final["Saldo_Act"] / df_ms_final["Total_Sistema"]) * 100
+        df_ms_final = df_ms_final.sort_values("Periodo_DT")
+
+        # --- 2. GRÁFICO DE MARKET SHARE ---
+        fig_ms = px.line(
+            df_ms_final, 
+            x="Periodo", 
+            y="Market_Share", 
+            color="Banco",
+            markers=True,
+            template="plotly_white",
+            title="Evolución de Cuota de Mercado (%)",
+            labels={"Market_Share": "% de Participación", "Periodo": "Mes"},
+            line_shape="spline" # Líneas suavizadas para share
+        )
+
+        fig_ms.update_layout(yaxis_ticksuffix="%", hovermode="x unified")
+        
+        st.plotly_chart(fig_ms, use_container_width=True)
+
+        with st.expander("Ver tabla de Market Share (%)"):
+            df_ms_pivot = df_ms_final.pivot(index="Periodo", columns="Banco", values="Market_Share")
+            st.dataframe(df_ms_pivot.style.format("{:.2f}%"), use_container_width=True)
+    else:
+        st.warning("No hay datos suficientes para calcular el Market Share.")
+else:
+    st.info("Seleccione bancos y cuentas arriba para calcular la participación de mercado.")
