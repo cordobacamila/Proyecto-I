@@ -114,7 +114,7 @@ def cargar_datos():
     df['Mes'] = df['Fecha'].str[4:]
     df['Debe'] = pd.to_numeric(df['Debe'], errors='coerce').fillna(0)
     df['Haber'] = pd.to_numeric(df['Haber'], errors='coerce').fillna(0)
-    df['Saldo_Act'] = df['Debe'] - df['Haber']
+    df['Saldo_Act'] = df['Haber'] - df['Debe'] 
     df["Periodo_DT"] = pd.to_datetime(df["Fecha"], format='%Y%m', errors='coerce')
     # Periodo para mostrar (MM-AAAA)
     df["Periodo"] = df["Fecha"].str[4:] + "-" + df["Fecha"].str[:4]
