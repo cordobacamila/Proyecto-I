@@ -6,6 +6,17 @@ import os
 # Configuración de página: Mantenemos wide pero los elementos internos se adaptarán
 st.set_page_config(page_title="BCRA Entidades Financieras", layout="wide", page_icon="📊")
 
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 1rem;
+            padding-bottom: 0rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
 # --- FUNCIONES DE SOPORTE ---
 def formato_ar(valor):
     return "{:,.2f}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
@@ -57,17 +68,6 @@ def cargar_datos():
         
     df = pd.concat(lista_df, ignore_index=True)
 
-    #para sacar el espacio en blanco del principio
-    st.markdown("""
-    <style>
-           .block-container {
-                padding-top: 1rem;
-                padding-bottom: 0rem;
-                padding-left: 1rem;
-                padding-right: 1rem;
-            }
-    </style>
-    """, unsafe_allow_html=True)
 
     
     # 1. NORMALIZAR NOMBRES DE BANCOS (Tomar el último según la Fecha)
@@ -244,39 +244,75 @@ if not df_actual.empty:
 else:
     df_comp = pd.DataFrame() # Caso vacío para evitar errores en la tabla
 
+# --- FUNCIÓN DE COLOR ACTUALIZADA ---
+def aplicar_colores(val):
+    if val < 0:
+        return 'color: #ff4b4b; font-weight: bold;' # Rojo
+    elif val > 0:
+        return 'color: #008000; font-weight: bold;' # Verde
+    return 'color: black;' # Negro (cero o sin cambio)
 
-# --- TABLA RESUMEN ---
+
+
+# --- TABLA FINAL CONFIGURADA ---
 st.divider()
+st.subheader("📝 Balance Detallado por Entidad y Rubro")
+
 df_res = df_comp.copy()
-if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
-if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
+
+# 1. Aplicar todos los filtros seleccionados
+if nivel0_sel != "Todos": 
+    df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
+if nivel2_sel != "Todos": 
+    df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
+if nivel1_sel != "Todos": 
+    df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
 if cuentas_sel_list:
     codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
     df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
 
-def color_variacion(val):
-    if val < 0: return 'color: #ff4b4b;'
-    elif val > 0: return 'color: #008000;'
-    return 'color: black;'
+# 2. Selección y Renombrado de columnas para la vista final
+# Agrupamos para asegurar que no haya duplicados si hay varios registros
+df_final = df_res.groupby(["Banco", "Nivel_0", "Nivel_2", "Cuenta"]).agg({
+    "Saldo_Act": "sum",
+    "Var. Absoluta": "sum",
+    "Var. %": "mean"
+}).reset_index()
 
-# --- TABLA RESUMEN CON JERARQUÍA Y TOTAL GENERAL ---
-st.subheader("📝 Balance Estructural por Niveles")
+# Reordenamos las columnas según tu pedido
+df_final = df_final[[
+    "Banco", 
+    "Nivel_0", 
+    "Nivel_2", 
+    "Cuenta", 
+    "Saldo_Act", 
+    "Var. Absoluta", 
+    "Var. %"
+]]
 
-df_res = df_comp.copy()
+# 3. Renombrado estético de cabeceras
+df_final.columns = [
+    "Nombre Banco", 
+    "Masa Patrimonial", 
+    "Rubro", 
+    "Nombre de la Cuenta", 
+    "Saldo Actual", 
+    "Var. Absoluta", 
+    "Var. %"
+]
 
-# 1. Filtros (mantenemos tu lógica actual)
-if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
-if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
-if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
-if cuentas_sel_list:
-    codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
-    df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
+# 4. Visualización con Estilo
+st.dataframe(
+    df_final.style.format({
+        "Saldo Actual": "{:,.2f}", 
+        "Var. Absoluta": "{:,.2f}", 
+        "Var. %": "{:.2f}%"
+    }).map(aplicar_colores, subset=['Var. Absoluta', 'Var. %']),
+    use_container_width=True,
+    hide_index=True,
+    height=800  # Altura extendida para mejor visibilidad
+)
 
-st.subheader("📝 Detalle por Cuenta")
-df_styled = (df_res[["Banco", "Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]]
-             .style.format({"Saldo_Act": "{:,.2f}", "Var. Absoluta": "{:,.2f}", "Var. %": "{:.2f}%"})
-             .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
-
-st.dataframe(df_styled, use_container_width=True, hide_index=True)
-
-
+# 5. Totalizador rápido al pie
+total_s = df_final["Saldo Actual"].sum()
+st.markdown(f"**Suma Total de Saldo Actual:** $ {formato_ar(total_s)}")
