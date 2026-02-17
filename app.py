@@ -425,51 +425,67 @@ except Exception as e:
 # --- PROCESAMIENTO DEL GRÁFICO EVOLUTIVO ---
 
 st.markdown("---")
-st.subheader("📅 Slicer de Tiempo")
+st.subheader("📅 Evolución Histórica")
 
-# 1. Obtenemos la lista de periodos únicos y ordenados cronológicamente
-lista_periodos_slicer = df.sort_values("Periodo_DT")["Periodo"].unique().tolist()
+# Ordenamos cronológicamente para el Slicer
+df_para_slicer = df.sort_values("Periodo_DT")
+lista_periodos_slicer = df_para_slicer["Periodo"].unique().tolist()
 
 if len(lista_periodos_slicer) > 1:
-    # 2. Creamos el Slider de selección de rango
     rango_slicer = st.select_slider(
-        "Deslice para ajustar el rango de análisis:",
+        "Seleccione el rango de periodos para el gráfico:",
         options=lista_periodos_slicer,
-        value=(lista_periodos_slicer[0], lista_periodos_slicer[-1]) # Inicio y Fin por defecto
+        value=(lista_periodos_slicer[0], lista_periodos_slicer[-1])
     )
-    
-    # 3. Extraemos los valores seleccionados
     p_inicio, p_fin = rango_slicer
 else:
-    st.warning("No hay suficientes periodos para filtrar.")
     p_inicio = p_fin = lista_periodos_slicer[0] if lista_periodos_slicer else None
 
 
 # --- PROCESAMIENTO DEL GRÁFICO CON SLICER ---
 if bancos_sel and cuentas_sel_list and p_inicio and p_fin:
-    # Obtenemos las fechas límites basadas en los periodos seleccionados del slicer
-    fecha_limite_inf = df[df["Periodo"] == p_inicio]["Periodo_DT"].iloc[0]
-    fecha_limite_sup = df[df["Periodo"] == p_fin]["Periodo_DT"].iloc[0]
-
+    # Obtenemos las fechas para filtrar
+    fecha_inf = df[df["Periodo"] == p_inicio]["Periodo_DT"].min()
+    fecha_sup = df[df["Periodo"] == p_fin]["Periodo_DT"].max()
+    
+    codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
+    
     mask = (
         (df["Banco"].isin(bancos_sel)) & 
-        (df["Codigo"].isin(lista_cuentas_master)) &
-        (df["Periodo_DT"] >= fecha_limite_inf) &
-        (df["Periodo_DT"] <= fecha_limite_sup)
+        (df["Codigo"].isin(codigos_comp)) &
+        (df["Periodo_DT"] >= fecha_inf) &
+        (df["Periodo_DT"] <= fecha_sup)
     )
+    
     df_ev_final = df[mask].copy()
 
     if not df_ev_final.empty:
-        # (Aquí sigue tu lógica de Etiqueta e groupby que ya teníamos)
-        df_plot_ev = df_ev_final.groupby(["Periodo", "Etiqueta"])["Saldo_Act"].sum().reset_index()
+        # --- PASO CRUCIAL: Crear Etiqueta ANTES del groupby ---
+        if len(bancos_sel) == 1:
+            df_ev_final["Etiqueta"] = df_ev_final["Cuenta"]
+        elif len(codigos_comp) == 1:
+            df_ev_final["Etiqueta"] = df_ev_final["Banco"]
+        else:
+            df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
+
+        # Agrupamos
+        df_plot_ev = df_ev_final.groupby(["Periodo", "Etiqueta", "Periodo_DT"])["Saldo_Act"].sum().reset_index()
         
-        # Importante: Asegurar orden cronológico en el eje X
-        df_plot_ev = pd.merge(df_plot_ev, df_ev_final[["Periodo", "Periodo_DT"]].drop_duplicates(), on="Periodo")
+        # Ordenamos por la fecha real (Periodo_DT) para que la línea no salte
         df_plot_ev = df_plot_ev.sort_values("Periodo_DT")
 
         fig_ev = px.line(
-            df_plot_ev, x="Periodo", y="Saldo_Act", color="Etiqueta",
-            markers=True, template="plotly_white",
-            title=f"Evolución desde {p_inicio} hasta {p_fin}"
+            df_plot_ev, 
+            x="Periodo", 
+            y="Saldo_Act", 
+            color="Etiqueta",
+            markers=True,
+            template="plotly_white",
+            labels={"Saldo_Act": "Saldo ($)"}
         )
+        
         st.plotly_chart(fig_ev, use_container_width=True)
+    else:
+        st.warning("⚠️ No hay datos para los bancos o cuentas seleccionadas en este periodo.")
+else:
+    st.info("💡 Seleccione al menos un banco y una cuenta en los filtros superiores para ver la evolución.")
