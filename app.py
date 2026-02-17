@@ -334,6 +334,14 @@ df_styled = (df_res[cols_a_mostrar]
 st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto")
 
 
+
+c_f1, c_f2 = st.columns([2, 1])
+with c_f1:
+    st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto")
+        
+with c_f2:
+    st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto")
+
 # --- BOTÓN DE DESCARGA ---
 # Creamos un buffer en memoria para el Excel
 try:
