@@ -193,7 +193,6 @@ if df.empty:
 
 
 # --------------------- SECCION TABLA ENTIDADES FINANCIERAS ---------------------#
-st.divider()
 # --- SECCIÓN: FILTROS DE ENTIDADES Y CUENTAS ---
 st.subheader("📊 **Entidades Financieras**")
 
@@ -266,21 +265,22 @@ def color_variacion(val):
     elif val > 0: return 'color: #008000; font-weight: bold;'
     return 'color: black;'
 
-st.subheader(f"📝 Detalle por Cuenta ({opcion_vista})")
+st.subheader(f"📝 Balance contable ({opcion_vista})")
+df_res=df_res.sort_values("Codigo", ascending=True)
 df_styled = (df_res[["Banco", "Nivel_0", "Nivel_2", "Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]]
              .style.format({"Saldo_Act": "{:,.2f}", "Var. Absoluta": "{:,.2f}", "Var. %": "{:.2f}%"})
              .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
 
-st.dataframe(df_styled, use_container_width=True, hide_index=True, height=500)
+st.dataframe(df_styled, use_container_width=True, hide_index=True)
+#height=True
 
-total_s = df_res["Saldo_Act"].sum()
-total_v = df_res["Var. Absoluta"].sum()
-
-st.markdown("---")
-c_t1, c_t2, c_t3 = st.columns([2, 1, 1])
-with c_t1: st.metric("💰 Total Saldo Actual", f"$ {formato_ar(total_s)}")
-with c_t2: st.metric("📈 Var. Absoluta Total", f"$ {formato_ar(total_v)}", delta=formato_ar(total_v))
-with c_t3:
-    den = abs(total_s - total_v)
-    v_pct = (total_v / den * 100) if den != 0 else 0
-    st.metric("📊 Var. % Total", f"{v_pct:.2f}%", delta=f"{v_pct:.2f}%")
+# st.markdown("---")
+# total_s = df_res["Saldo_Act"].sum()
+# total_v = df_res["Var. Absoluta"].sum()
+# c_t1, c_t2, c_t3 = st.columns([2, 1, 1])
+# with c_t1: st.metric("💰 Total Saldo Actual", f"$ {formato_ar(total_s)}")
+# with c_t2: st.metric("📈 Var. Absoluta Total", f"$ {formato_ar(total_v)}", delta=formato_ar(total_v))
+# with c_t3:
+#     den = abs(total_s - total_v)
+#     v_pct = (total_v / den * 100) if den != 0 else 0
+#     st.metric("📊 Var. % Total", f"{v_pct:.2f}%", delta=f"{v_pct:.2f}%")
