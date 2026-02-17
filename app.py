@@ -422,25 +422,54 @@ except Exception as e:
 
 
 
-# --- PROCESAMIENTO DEL GRÁFICO ---
+# --- PROCESAMIENTO DEL GRÁFICO EVOLUTIVO ---
+
 st.markdown("---")
-st.subheader("📅 Evolución Histórica")
+st.subheader("📅 Slicer de Tiempo")
 
-p_min = df["Periodo_DT"].min().date()
-p_max = df["Periodo_DT"].max().date()
+# 1. Obtenemos la lista de periodos únicos y ordenados cronológicamente
+lista_periodos_slicer = df.sort_values("Periodo_DT")["Periodo"].unique().tolist()
 
-rango_periodo = st.date_input("Rango para el gráfico evolutivo:", value=(p_min, p_max), min_value=p_min, max_value=p_max)
+if len(lista_periodos_slicer) > 1:
+    # 2. Creamos el Slider de selección de rango
+    rango_slicer = st.select_slider(
+        "Deslice para ajustar el rango de análisis:",
+        options=lista_periodos_slicer,
+        value=(lista_periodos_slicer[0], lista_periodos_slicer[-1]) # Inicio y Fin por defecto
+    )
+    
+    # 3. Extraemos los valores seleccionados
+    p_inicio, p_fin = rango_slicer
+else:
+    st.warning("No hay suficientes periodos para filtrar.")
+    p_inicio = p_fin = lista_periodos_slicer[0] if lista_periodos_slicer else None
 
-if bancos_sel and cuentas_sel_list:
-    if isinstance(rango_periodo, tuple) and len(rango_periodo) == 2:
-        inicio, fin = rango_periodo
-        codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
+
+# --- PROCESAMIENTO DEL GRÁFICO CON SLICER ---
+if bancos_sel and cuentas_sel_list and p_inicio and p_fin:
+    # Obtenemos las fechas límites basadas en los periodos seleccionados del slicer
+    fecha_limite_inf = df[df["Periodo"] == p_inicio]["Periodo_DT"].iloc[0]
+    fecha_limite_sup = df[df["Periodo"] == p_fin]["Periodo_DT"].iloc[0]
+
+    mask = (
+        (df["Banco"].isin(bancos_sel)) & 
+        (df["Codigo"].isin(lista_cuentas_master)) &
+        (df["Periodo_DT"] >= fecha_limite_inf) &
+        (df["Periodo_DT"] <= fecha_limite_sup)
+    )
+    df_ev_final = df[mask].copy()
+
+    if not df_ev_final.empty:
+        # (Aquí sigue tu lógica de Etiqueta e groupby que ya teníamos)
+        df_plot_ev = df_ev_final.groupby(["Periodo", "Etiqueta"])["Saldo_Act"].sum().reset_index()
         
-        mask = (df["Banco"].isin(bancos_sel)) & (df["Codigo"].isin(codigos_comp)) & \
-               (df["Periodo_DT"].dt.date >= inicio) & (df["Periodo_DT"].dt.date <= fin)
-        
-        df_ev_final = df[mask].copy()
-        if not df_ev_final.empty:
-            df_plot_ev = df_ev_final.groupby(["Periodo", "Etiqueta"])["Saldo_Act"].sum().reset_index()
-            fig_ev = px.line(df_plot_ev, x="Periodo", y="Saldo_Act", color="Etiqueta", markers=True)
-            st.plotly_chart(fig_ev, use_container_width=True)
+        # Importante: Asegurar orden cronológico en el eje X
+        df_plot_ev = pd.merge(df_plot_ev, df_ev_final[["Periodo", "Periodo_DT"]].drop_duplicates(), on="Periodo")
+        df_plot_ev = df_plot_ev.sort_values("Periodo_DT")
+
+        fig_ev = px.line(
+            df_plot_ev, x="Periodo", y="Saldo_Act", color="Etiqueta",
+            markers=True, template="plotly_white",
+            title=f"Evolución desde {p_inicio} hasta {p_fin}"
+        )
+        st.plotly_chart(fig_ev, use_container_width=True)
