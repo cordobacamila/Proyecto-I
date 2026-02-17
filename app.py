@@ -404,3 +404,27 @@ except Exception as e:
 #     den = abs(total_s - total_v)
 #     v_pct = (total_v / den * 100) if den != 0 else 0
 #     st.metric("📊 Var. % Total", f"{v_pct:.2f}%", delta=f"{v_pct:.2f}%")
+
+
+st.markdown("---")
+# --- PROCESAMIENTO DEL GRÁFICO ---
+if bancos_sel and cuentas_sel_list:
+    codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
+    df_ev_final = df[(df["Banco"].isin(bancos_sel)) & (df["Codigo"].isin(codigos_comp))].copy()
+    
+    # Etiqueta inteligente
+    if len(bancos_sel) == 1:
+        df_ev_final["Etiqueta"] = df_ev_final["Cuenta"]
+    elif len(codigos_comp) == 1:
+        df_ev_final["Etiqueta"] = df_ev_final["Banco"]
+    else:
+        df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
+
+    df_plot_ev = df_ev_final.pivot_table(index="Fecha", columns="Etiqueta", values="Saldo_Act", aggfunc='sum').sort_index()
+
+    st.line_chart(df_plot_ev, use_container_width=True)
+    
+    with st.expander("Ver tabla de datos evolutivos"):
+        st.dataframe(df_plot_ev.style.format(formato_ar), use_container_width=True)
+else:
+    st.info("Seleccione al menos un banco y una cuenta para ver la evolución.")
