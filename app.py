@@ -407,24 +407,61 @@ except Exception as e:
 
 
 st.markdown("---")
+
+# --- PROCESAMIENTO DEL GRÁFICO ---
+# --- SLICER DE FECHA ---
+# Obtenemos las fechas mínimas y máximas reales de tus datos
+fecha_min_data = pd.to_datetime(df["Fecha"]).min()
+fecha_max_data = pd.to_datetime(df["Fecha"]).max()
+
+st.subheader("📅 Filtro Temporal")
+rango_fechas = st.date_input(
+    "Seleccione el periodo a visualizar:",
+    value=(fecha_min_data, fecha_max_data), # Rango por defecto: todo
+    min_value=fecha_min_data,
+    max_value=fecha_max_data
+)
+
+#grafico de lineas evolutivo
 # --- PROCESAMIENTO DEL GRÁFICO ---
 if bancos_sel and cuentas_sel_list:
-    codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
-    df_ev_final = df[(df["Banco"].isin(bancos_sel)) & (df["Codigo"].isin(codigos_comp))].copy()
-    
-    # Etiqueta inteligente
-    if len(bancos_sel) == 1:
-        df_ev_final["Etiqueta"] = df_ev_final["Cuenta"]
-    elif len(codigos_comp) == 1:
-        df_ev_final["Etiqueta"] = df_ev_final["Banco"]
+    # Verificamos que el rango de fechas esté completo (inicio y fin seleccionado)
+    if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
+        start_date, end_date = rango_fechas
+        
+        # Filtramos el DF original por Banco, Cuenta Y Rango de Fechas
+        codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
+        mask = (
+            (df["Banco"].isin(bancos_sel)) & 
+            (df["Codigo"].isin(codigos_comp)) &
+            (pd.to_datetime(df["Fecha"]).dt.date >= start_date) &
+            (pd.to_datetime(df["Fecha"]).dt.date <= end_date)
+        )
+        df_ev_final = df[mask].copy()
+
+        if not df_ev_final.empty:
+            # Lógica de Etiqueta Inteligente
+            if len(bancos_sel) == 1:
+                df_ev_final["Etiqueta"] = df_ev_final["Cuenta"]
+            elif len(codigos_comp) == 1:
+                df_ev_final["Etiqueta"] = df_ev_final["Banco"]
+            else:
+                df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
+
+            # Gráfico de Plotly (con markers para que se vea siempre el punto)
+            df_plot_ev = df_ev_final.groupby(["Fecha", "Etiqueta"])["Saldo_Act"].sum().reset_index()
+            df_plot_ev = df_plot_ev.sort_values("Fecha")
+
+            fig_ev = px.line(
+                df_plot_ev, x="Fecha", y="Saldo_Act", color="Etiqueta",
+                markers=True, template="plotly_white",
+                title=f"Evolución del {start_date} al {end_date}"
+            )
+            
+            st.plotly_chart(fig_ev, use_container_width=True)
+        else:
+            st.warning("No hay datos para el rango de fechas seleccionado.")
     else:
-        df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
-
-    df_plot_ev = df_ev_final.pivot_table(index="Fecha", columns="Etiqueta", values="Saldo_Act", aggfunc='sum').sort_index()
-
-    st.line_chart(df_plot_ev, use_container_width=True)
-    
-    with st.expander("Ver tabla de datos evolutivos"):
-        st.dataframe(df_plot_ev.style.format(formato_ar), use_container_width=True)
+        st.info("Por favor, seleccione una fecha de inicio y una de fin en el calendario.")
 else:
     st.info("Seleccione al menos un banco y una cuenta para ver la evolución.")
