@@ -427,69 +427,59 @@ except Exception as e:
 st.markdown("---")
 st.subheader("📅 Evolución Histórica")
 
-# Ordenamos cronológicamente para el Slicer
-df_para_slicer = df.sort_values("Periodo_DT")
-lista_periodos_slicer = df_para_slicer["Periodo"].unique().tolist()
+# --- SELECTOR DE MODO DE GRÁFICO (El "Botón") ---
+modo_grafico = st.radio(
+    "Seleccione visualización:",
+    options=["Sumar Cuentas (Consolidado)", "Detallar por Cuenta y Banco"],
+    horizontal=True
+)
 
-if len(lista_periodos_slicer) > 1:
-    rango_slicer = st.select_slider(
-        "Seleccione el rango de periodos para el gráfico:",
-        options=lista_periodos_slicer,
-        value=(lista_periodos_slicer[0], lista_periodos_slicer[-1])
-    )
-    p_inicio, p_fin = rango_slicer
-else:
-    p_inicio = p_fin = lista_periodos_slicer[0] if lista_periodos_slicer else None
+# (Mantenemos la lógica del slicer de periodos igual)
+lista_periodos_slicer = df.sort_values("Periodo_DT")["Periodo"].unique().tolist()
+rango_slicer = st.select_slider("Rango de análisis:", options=lista_periodos_slicer, value=(lista_periodos_slicer[0], lista_periodos_slicer[-1]))
+p_inicio, p_fin = rango_slicer
 
-
-# --- PROCESAMIENTO DEL GRÁFICO CON SLICER ---
-if bancos_sel and cuentas_sel_list and p_inicio and p_fin:
-    # Obtenemos las fechas para filtrar
+if bancos_sel and cuentas_sel_list:
+    # ... (Filtrado de fechas y códigos igual que antes) ...
+    codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
     fecha_inf = df[df["Periodo"] == p_inicio]["Periodo_DT"].min()
     fecha_sup = df[df["Periodo"] == p_fin]["Periodo_DT"].max()
-    codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
     
-    codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
-    
-    mask = (
-        (df["Banco"].isin(bancos_sel)) & 
-        (df["Codigo"].isin(codigos_comp)) &
-        (df["Periodo_DT"] >= fecha_inf) &
-        (df["Periodo_DT"] <= fecha_sup)
-    )
+    mask = (df["Banco"].isin(bancos_sel)) & (df["Codigo"].isin(codigos_comp)) & \
+           (df["Periodo_DT"] >= fecha_inf) & (df["Periodo_DT"] <= fecha_sup)
     df_ev_final = df[mask].copy()
 
     if not df_ev_final.empty:
-        # --- PASO CRUCIAL: Crear Etiqueta ANTES del groupby ---
-        if len(bancos_sel) == 1:
-            df_ev_final["Etiqueta"] = df_ev_final["Cuenta"]
-        elif len(codigos_comp) == 1:
-            df_ev_final["Etiqueta"] = df_ev_final["Banco"]
+        # --- LÓGICA DINÁMICA SEGÚN EL BOTÓN SELECCIONADO ---
+        if modo_grafico == "Sumar Cuentas (Consolidado)":
+            # Agrupamos solo por Banco y Periodo (Suma cuentas)
+            df_plot_ev = df_ev_final.groupby(["Periodo", "Periodo_DT", "Banco"])["Saldo_Act"].sum().reset_index()
+            color_param = "Banco"
+            titulo_graf = "Evolución Consolidada (Suma de Cuentas)"
         else:
-            df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
+            # Agrupamos por Banco, Cuenta y Periodo (Detalle total)
+            df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " - " + df_ev_final["Cuenta"]
+            df_plot_ev = df_ev_final.groupby(["Periodo", "Periodo_DT", "Etiqueta"])["Saldo_Act"].sum().reset_index()
+            color_param = "Etiqueta"
+            titulo_graf = "Evolución Detallada por Banco y Cuenta"
 
-        # Esto suma automáticamente todos los "Saldo_Act" de las cuentas seleccionadas
-        df_plot_ev = df_ev_final.groupby(["Periodo", "Periodo_DT", "Banco"])["Saldo_Act"].sum().reset_index()
+        # Orden cronológico
         df_plot_ev = df_plot_ev.sort_values("Periodo_DT")
 
-        # El color ahora representa al Banco, y la línea es la SUMA de las cuentas
+        # Crear Gráfico
         fig_ev = px.line(
             df_plot_ev, 
             x="Periodo", 
             y="Saldo_Act", 
-            color="Banco" if len(bancos_sel) > 1 else None,
+            color=color_param,
             markers=True,
             template="plotly_white",
-            title=f"Evolución Sumada de Cuentas Seleccionadas",
-            labels={"Saldo_Act": "Suma Total ($)"}
+            title=titulo_graf,
+            labels={"Saldo_Act": "Saldo ($)"}
         )
         
-        # Ajuste para que la línea no cambie de color si es solo un banco
-        if len(bancos_sel) == 1:
-            fig_ev.update_traces(line_color='#008080') 
-
         st.plotly_chart(fig_ev, use_container_width=True)
     else:
-        st.warning("No hay datos para sumar en este rango.")
+        st.warning("No hay datos para los filtros seleccionados.")
 
     ##
