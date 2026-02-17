@@ -313,7 +313,6 @@ if nivel0_sel == "Todos" and opcion_vista == "Todo":
     cols_a_mostrar.insert(1, "Nivel_0")
 
 # --- RENDERIZADO DE TABLA ---
-st.subheader(f"📝 Balance contable ({opcion_vista})")
 
 # Ordenamos antes de aplicar el estilo
 df_res = df_res.sort_values("Codigo", ascending=True)
