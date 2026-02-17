@@ -517,49 +517,76 @@ if matriz_data:
 
 
 
-# --- PROCESAMIENTO DEL GRÁFICO (CORREGIDO) ---
+# --- SECCIÓN: ANÁLISIS EVOLUTIVO COMPARATIVO ---
+st.divider()
+st.header("📈 Comparativo Evolutivo")
+st.write("Compare tendencias temporales: una cuenta en varios bancos, o varias cuentas de un mismo banco.")
 
-# Verificamos que haya AL MENOS uno en cada lista
-if len(bancos_comp) >= 1 and len(cuentas_comp) >= 1:
-    # 1. Extraer códigos de las cuentas seleccionadas
+# 1. Filtros específicos para esta sección (en 2 columnas para móvil)
+
+# Aquí usamos el universo completo de bancos para comparar
+bancos_comp = st.multiselect("Bancos a comparar:", 
+                            options=sorted(df["Banco"].unique()),
+                            default=bancos_sel, # Toma por defecto lo que elegiste arriba
+                            key="b_comp")
+
+
+c_ev3, c_ev4 = st.columns(2)
+
+with c_ev3:
+    # Toma el nivel0_sel de arriba como default
+    n0_ev = st.selectbox("Masa Patrimonial:", 
+                        ["Todos"] + sorted(df["Nivel_0"].unique().tolist()), 
+                        index=(["Todos"] + sorted(df["Nivel_0"].unique().tolist())).index(nivel0_sel),
+                        key="n0_ev")
+with c_ev4:
+    # Filtra Nivel 2 según Nivel 0 seleccionado aquí
+    df_n2_ev = df[df["Nivel_0"] == n0_ev] if n0_ev != "Todos" else df
+    n2_ev = st.selectbox("Rubro (Nivel 2):", 
+                        ["Todos"] + sorted(df_n2_ev["Nivel_2"].unique().tolist()), 
+                        key="n2_ev")
+    
+n1_ev = st.selectbox("Nivel de Detalle:", 
+                    ["Todos"] + sorted(df["Nivel_1"].unique().tolist()), 
+                    index=(["Todos"] + sorted(df["Nivel_1"].unique().tolist())).index(nivel1_sel),
+                    key="n1_ev")
+
+# Aquí buscamos las cuentas (puedes usar el buscador de arriba o uno nuevo)
+# Para simplicidad, usamos una búsqueda global de códigos
+df_ev_opc = df.copy()
+if n0_ev != "Todos": 
+    df_ev_opc = df_ev_opc[df_ev_opc["Nivel_0"] == n0_ev]
+if n2_ev != "Todos": 
+    df_ev_opc = df_ev_opc[df_ev_opc["Nivel_2"] == n2_ev]
+if n1_ev != "Todos": 
+    df_ev_opc = df_ev_opc[df_ev_opc["Nivel_1"] == n1_ev]
+
+# Generamos la lista de opciones basada en los filtros anteriores
+opciones_cuentas_ev = sorted((df_ev_opc["Codigo"] + " - " + df_ev_opc["Cuenta"]).unique())
+
+# 3. Selector de Cuentas (Ahora dinámico)
+cuentas_comp = st.multiselect("Cuentas a comparar:", 
+                            options=opciones_cuentas_ev, # <--- Ahora usa la lista filtrada
+                            key="c_comp")
+
+# --- PROCESAMIENTO DEL GRÁFICO ---
+if bancos_comp and cuentas_comp:
     codigos_comp = [c.split(" - ")[0] for c in cuentas_comp]
+    df_ev_final = df[(df["Banco"].isin(bancos_comp)) & (df["Codigo"].isin(codigos_comp))].copy()
     
-    # 2. Filtrar el DataFrame ORIGINAL (df) para no arrastrar filtros de otras secciones
-    # Importante: Usar el df base para asegurar que tenemos toda la historia temporal
-    df_ev_final = df[
-        (df["Banco"].isin(bancos_comp)) & 
-        (df["Codigo"].isin(codigos_comp))
-    ].copy()
-    
-    # 3. Crear la Etiqueta para la leyenda
-    if len(bancos_comp) == 1 and len(codigos_comp) == 1:
-        # Un solo banco y una sola cuenta
-        nombre_banco = bancos_comp[0]
-        nombre_cuenta = cuentas_comp[0].split(" - ")[1]
-        df_ev_final["Etiqueta"] = f"{nombre_banco} - {nombre_cuenta}"
-    elif len(bancos_comp) == 1:
+    # Etiqueta inteligente
+    if len(bancos_comp) == 1:
         df_ev_final["Etiqueta"] = df_ev_final["Cuenta"]
     elif len(codigos_comp) == 1:
         df_ev_final["Etiqueta"] = df_ev_final["Banco"]
     else:
         df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
 
-    # 4. Crear la tabla pivote para el gráfico
-    # Usamos fillna(0) para que si un mes no hay datos, la línea no se corte
-    df_plot_ev = df_ev_final.pivot_table(
-        index="Fecha", 
-        columns="Etiqueta", 
-        values="Saldo_Act", 
-        aggfunc='sum'
-    ).sort_index().fillna(0)
+    df_plot_ev = df_ev_final.pivot_table(index="Fecha", columns="Etiqueta", values="Saldo_Act", aggfunc='sum').sort_index()
 
-    # 5. Dibujar Gráfico
-    if not df_plot_ev.empty:
-        st.line_chart(df_plot_ev, use_container_width=True)
-        
-        with st.expander("Ver tabla de datos evolutivos"):
-            st.dataframe(df_plot_ev.style.format(formato_ar), use_container_width=True)
-    else:
-        st.warning("No se encontraron datos históricos para esa combinación de Banco/Cuenta.")
+    st.line_chart(df_plot_ev, use_container_width=True)
+    
+    with st.expander("Ver tabla de datos evolutivos"):
+        st.dataframe(df_plot_ev.style.format(formato_ar), use_container_width=True)
 else:
-    st.info("💡 Seleccione al menos **un banco** y **una cuenta** para graficar la evolución.")
+    st.info("Seleccione al menos un banco y una cuenta para ver la evolución.")
