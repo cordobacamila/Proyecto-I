@@ -17,6 +17,20 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+st.markdown("""
+    <style>
+        /* Achicar la letra de las tablas */
+        .stDataFrame td, .stDataFrame th {
+            font-size: 12px !important;
+        }
+        /* Reducir el padding interno para que las filas sean más bajas */
+        [data-testid="stTable"] td, [data-testid="stTable"] th {
+            padding: 2px 5px !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+
 # --- FUNCIONES DE SOPORTE ---
 def formato_ar(valor):
     return "{:,.2f}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
@@ -268,11 +282,43 @@ def color_variacion(val):
 
 st.subheader(f"📝 Balance contable ({opcion_vista})")
 df_res=df_res.sort_values("Codigo", ascending=True)
-df_styled = (df_res[["Banco", "Nivel_0", "Nivel_2", "Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]]
+
+# Solo las columnas esenciales para ahorrar espacio
+columnas_visibles = ["Nivel_0", "Nivel_2","Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]
+if len(bancos_sel) > 1:
+    columnas_visibles.insert(0, "Banco") # Solo mostrar banco si hay más de uno
+
+
+# Agregamos Nivel_0 y Nivel_2 solo si en el filtro pusiste "Todos"
+# Si ya elegiste uno, no hace falta que se repita en cada fila de la tabla
+if nivel0_sel == "Todos":
+    columnas_visibles.insert(1, "Nivel_0")
+if nivel2_sel == "Todos":
+    columnas_visibles.insert(2, "Nivel_2")
+
+
+df_styled = (df_res[columnas_visibles]
+             .sort_values("Codigo")
              .style.format({"Saldo_Act": "{:,.2f}", "Var. Absoluta": "{:,.2f}", "Var. %": "{:.2f}%"})
              .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
 
-st.dataframe(df_styled, use_container_width=True, hide_index=True)
+st.dataframe(df_styled, use_container_width=True, hide_index=None)
+
+
+# --- BOTÓN DE DESCARGA ---
+# Creamos un buffer en memoria para el Excel
+output = io.BytesIO()
+with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+    df_res.to_excel(writer, index=False, sheet_name='Reporte_BCRA')
+
+st.download_button(
+    label="📥 Descargar esta vista a Excel",
+    data=output.getvalue(),
+    file_name=f"Reporte_BCRA_{opcion_vista}_{periodo_sel}.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+
 #height=True
 
 # st.markdown("---")
