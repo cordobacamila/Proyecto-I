@@ -224,7 +224,7 @@ with st.expander("🎯 **Configurar Filtros**", expanded=True):
     lista_bancos_master = sorted(df["Banco"].unique())
     bancos_sel = st.multiselect("🏢 Entidades Financieras:", options=lista_bancos_master, default=[lista_bancos_master[0]] if lista_bancos_master else [])
 
-    c_f1, c_f2 = st.columns([2, 1])
+    c_f1, c_f2 = st.columns([1, 1])
     with c_f1:
         lista_periodos = df.sort_values("Periodo_DT", ascending=False)["Periodo"].unique().tolist()
         periodo_sel = st.selectbox("📅 Periodo de Tabla (MM-AAAA):", options=lista_periodos)
@@ -244,22 +244,20 @@ with st.expander("🎯 **Configurar Filtros**", expanded=True):
 
     # Filtro para el Multiselect de Cuentas
     df_opc = df[df["Periodo"] == periodo_sel].copy()
-    if nivel0_sel: df_opc = df_opc[df_opc["Nivel_0"].isin(nivel0_sel)]
-    # ... (Resto de filtros de df_opc igual) ...
-    lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
-    cuentas_sel_list = st.multiselect("🔢 Seleccionar Cuentas para Gráfico Evolutivo:", options=lista_cuentas_master)
 
-    df_opc = df[df["Periodo"] == periodo_sel].copy()
-    df_opc = df[df["Periodo"] == periodo_sel].copy()
-
-    # Cambiamos == por .isin() porque nivel0_sel ahora es una lista
-    if nivel0_sel: df_opc = df_opc[df_opc["Nivel_0"].isin(nivel0_sel)]
+    # 2. Aplicamos los filtros de Masa, Rubro y Detalle para que la lista sea corta y útil
+    if nivel0_sel:  df_opc = df_opc[df_opc["Nivel_0"].isin(nivel0_sel)]
     if nivel2_sel != "Todos": df_opc = df_opc[df_opc["Nivel_2"] == nivel2_sel]
-    if nivel1_sel != "Todos": df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
+    if nivel1_sel != "Todos":  df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
 
-    
+    # 3. Creamos la lista única de etiquetas "Código - Cuenta"
     lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
-    cuentas_sel_list = st.multiselect("🔢 Seleccionar Cuentas:", options=lista_cuentas_master)
+    # 4. Única instancia del multiselect
+    cuentas_sel_list = st.multiselect(
+        "🔢 Seleccionar Cuentas para Gráfico Evolutivo:", 
+        options=lista_cuentas_master,
+        help="Seleccione las cuentas que desea comparar en el gráfico de líneas al final de la página."
+    )
 
 # --- COMPARATIVO ---
 try:
