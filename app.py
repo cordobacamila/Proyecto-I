@@ -163,67 +163,49 @@ with st.sidebar:
 
 
 
-# --- SECCIÓN DE FILTROS (OPTIMIZADA PARA MÓVIL) ---
 st.subheader("📊 **Entidades Financieras**")
 
-
-with st.expander("🎯 **Configurar Filtros de Entidades y Cuentas**", expanded=True):
+# Usamos un expander con un título más corto
+with st.expander("🎯 **Filtros rápidos**", expanded=True):
     
-    # Entidades (Mostrará solo el nombre más reciente de cada una)
+    # Entidades: Usamos el multiselect directamente
     lista_bancos_master = sorted(df["Banco"].unique())
-    bancos_sel = st.multiselect("🏢 Entidades Financieras:", 
+    bancos_sel = st.multiselect("🏢 Entidades:", 
                                 options=lista_bancos_master, 
-                                default=[lista_bancos_master[0]] if lista_bancos_master else [])
+                                default=[lista_bancos_master[0]] if lista_bancos_master else [],
+                                key="b_main")
 
-
-
-
-        # --- SECCIÓN DE FILTROS (OPTIMIZADA PARA MÓVIL CON NIVEL 2) ---
-
-    # Fila 1: Tiempo
-    c_f1, c_f2 = st.columns(2)
-    with c_f1:
+    # --- FILTROS COMPACTOS ---
+    # Fila 1: Año, Mes y Masa Patrimonial (3 columnas para ahorrar altura)
+    c1, c2, c3 = st.columns([1, 1, 1.5])
+    with c1:
         año_sel = st.selectbox("Año:", sorted(df["Año"].unique(), reverse=True))
-    with c_f2:
+    with c2:
         mes_sel = st.selectbox("Mes:", sorted(df[df["Año"] == año_sel]["Mes"].unique()))
+    with c3:
+        nivel0_sel = st.selectbox("Masa:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
 
-    # Fila 2: Clasificación Principal y Rubros (Nivel 0 y Nivel 2)
-    c_f3, c_f4 = st.columns(2)
-    with c_f3:
-        nivel0_sel = st.selectbox("Masa Patrimonial:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
+    # Fila 2: Rubro y Nivel de Detalle
+    c4, c5 = st.columns(2)
+    with c4:
+        df_n2_opc = df[df["Nivel_0"] == nivel0_sel] if nivel0_sel != "Todos" else df
+        nivel2_sel = st.selectbox("Rubro (N2):", ["Todos"] + sorted(df_n2_opc["Nivel_2"].unique().tolist()))
+    with c5:
+        nivel1_sel = st.selectbox("Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
 
-    with c_f4:
-        # Filtramos las opciones de Nivel 2 según la Masa seleccionada (Nivel 0)
-        df_n2_opc = df.copy()
-        if nivel0_sel != "Todos":
-            df_n2_opc = df_n2_opc[df_n2_opc["Nivel_0"] == nivel0_sel]
-        
-        nivel2_sel = st.selectbox("Rubro (Nivel 2):", ["Todos"] + sorted(df_n2_opc["Nivel_2"].unique().tolist()))
-
-    # Fila 3: Nivel de Detalle (Opcional, lo dejamos solo en una fila o compartido)
-    nivel1_sel = st.selectbox("Nivel de Detalle (Totales):", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
-
-    # --- LÓGICA FILTRADA PARA EL MULTISELECT DE CUENTAS ---
+    # --- LÓGICA DE FILTRADO (Igual que antes pero optimizada) ---
     df_opc = df.copy()
+    if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
+    if nivel2_sel != "Todos": df_opc = df_opc[df_opc["Nivel_2"] == nivel2_sel]
+    if nivel1_sel != "Todos": df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
 
-    # Aplicamos los 3 niveles de filtro en cascada para que la lista de cuentas sea corta y útil
-    if nivel0_sel != "Todos": 
-        df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
-
-    if nivel2_sel != "Todos": 
-        df_opc = df_opc[df_opc["Nivel_2"] == nivel2_sel]
-
-    if nivel1_sel != "Todos": 
-        df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
-
-    # Generamos la lista de cuentas final
     lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
 
-    # Filtro de Cuentas (Full width para touch)
+    # Multiselect de cuentas con etiqueta lateral o vacía para ahorrar espacio vertical
     cuentas_sel_list = st.multiselect(
-        "🔢 Cuentas (Filtradas por Rubro):", 
+        "🔢 Seleccionar Cuentas:", 
         options=lista_cuentas_master,
-        placeholder="Seleccione cuenta(s)..."
+        placeholder="Escriba aquí..."
     )
 
 # aca termina el expander-----------
@@ -258,8 +240,6 @@ def color_variacion(val):
     return 'color: black;'
 
 # --- TABLA RESUMEN CON JERARQUÍA Y TOTAL GENERAL ---
-# --- TABLA ÚNICA JERÁRQUICA Y EXPANDIBLE ---
-st.divider()
 st.subheader("📝 Balance Estructural por Niveles")
 
 df_res = df_comp.copy()
