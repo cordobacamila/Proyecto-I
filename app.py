@@ -411,8 +411,8 @@ st.markdown("---")
 # --- PROCESAMIENTO DEL GRÁFICO ---
 # --- SLICER DE FECHA ---
 # Obtenemos las fechas mínimas y máximas reales de tus datos
-p_min = df["Periodo_DT"].min()
-p_max = df["Periodo_DT"].max()
+p_min = df["Periodo"].min()
+p_max = df["Periodo"].max()
 
 st.subheader("📅 Rango de Análisis")
 rango_periodo = st.date_input(
