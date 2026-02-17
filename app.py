@@ -270,4 +270,35 @@ df_styled = (df_res[["Banco", "Nivel_0", "Nivel_2","Codigo", "Cuenta", "Saldo_Ac
              })
              .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
 
-st.dataframe(df_styled, use_container_width=True, hide_index=True, height=600)
+st.dataframe(df_styled, use_container_width=True, hide_index=True, height=500)
+
+# --- TOTALIZADOR AL PIE DE LA TABLA ---
+
+# Calculamos la suma de la columna filtrada
+total_seleccionado = df_res["Saldo_Act"].sum()
+total_var_abs = df_res["Var. Absoluta"].sum()
+
+# Creamos tres columnas para mostrar los totales de forma estética
+st.markdown("---")
+c_t1, c_t2, c_t3 = st.columns([2, 1, 1])
+
+with c_t1:
+    st.metric(label="💰 Total Saldo Actual", value=f"$ {formato_ar(total_seleccionado)}")
+
+with c_t2:
+    # Usamos delta para mostrar la variación absoluta con color automático
+    st.metric(label="📈 Var. Absoluta Total", 
+              value=f"$ {formato_ar(total_var_abs)}",
+              delta=formato_ar(total_var_abs))
+
+with c_t3:
+    # Calculamos la variación porcentual del total
+    saldo_ant_total = total_seleccionado - total_var_abs
+    if saldo_ant_total != 0:
+        var_pct_total = (total_var_abs / abs(saldo_ant_total)) * 100
+    else:
+        var_pct_total = 0
+        
+    st.metric(label="📊 Var. % Total", 
+              value=f"{var_pct_total:.2f}%",
+              delta=f"{var_pct_total:.2f}%")
