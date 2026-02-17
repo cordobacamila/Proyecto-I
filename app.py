@@ -161,11 +161,6 @@ def cargar_datos():
         "72": "PFB - Acreedoras"
     }
 
-      
-    df['Nivel_0'] = df['Codigo'].apply(clasificar_nivel_0)
-    df['Nivel_1'] = df['Codigo'].apply(clasificar_nivel_1)
-    df['Nivel_2'] = df['Codigo'].str[:2].map(mapeo_n2)
-    
     def clasificar_vista(codigo):
         if not codigo: return "Otro"
         # El 650000 y los terminados en 00000 son MACRO
@@ -175,7 +170,15 @@ def cargar_datos():
         elif codigo.endswith("0000"):
             return "Vista Subtotales"
         else:
-            return "Otro"
+            return "Otro"  
+    
+    
+    
+    df['Nivel_0'] = df['Codigo'].apply(clasificar_nivel_0)
+    df['Nivel_1'] = df['Codigo'].apply(clasificar_nivel_1)
+    df['Nivel_2'] = df['Codigo'].str[:2].map(mapeo_n2)
+    df['Vista'] = df['Vista'].apply(clasificar_vista)
+    
 
     return df
 
@@ -264,10 +267,10 @@ df_res = df_comp.copy()
 
 # Aplicamos la lógica de botones que definimos
 if opcion_vista == "Vista Macro":
-    df_res = df_res[df_res["clasificar_vista"] == "Vista Macro"]
+    df_res = df_res[df_res["Vista"] == "Vista Macro"]
 elif opcion_vista == "Vista Subtotales":
     # Subtotales + la excepción del 650000
-    df_res = df_res[(df_res["clasificar_vista"] == "Vista Subtotales") | (df_res["Codigo"] == "650000")]
+    df_res = df_res[(df_res["Vista"] == "Vista Subtotales") | (df_res["Codigo"] == "650000")]
 # Si es "Todo", no filtramos por la columna Vista
 
 # --- 3. APLICAR RESTO DE FILTROS (Bancos, Cuentas seleccionadas, etc.) ---
