@@ -447,6 +447,7 @@ if bancos_sel and cuentas_sel_list and p_inicio and p_fin:
     # Obtenemos las fechas para filtrar
     fecha_inf = df[df["Periodo"] == p_inicio]["Periodo_DT"].min()
     fecha_sup = df[df["Periodo"] == p_fin]["Periodo_DT"].max()
+    codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
     
     codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
     
@@ -456,7 +457,6 @@ if bancos_sel and cuentas_sel_list and p_inicio and p_fin:
         (df["Periodo_DT"] >= fecha_inf) &
         (df["Periodo_DT"] <= fecha_sup)
     )
-    
     df_ev_final = df[mask].copy()
 
     if not df_ev_final.empty:
@@ -468,24 +468,28 @@ if bancos_sel and cuentas_sel_list and p_inicio and p_fin:
         else:
             df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
 
-        # Agrupamos
-        df_plot_ev = df_ev_final.groupby(["Periodo", "Etiqueta", "Periodo_DT"])["Saldo_Act"].sum().reset_index()
-        
-        # Ordenamos por la fecha real (Periodo_DT) para que la línea no salte
+        # Esto suma automáticamente todos los "Saldo_Act" de las cuentas seleccionadas
+        df_plot_ev = df_ev_final.groupby(["Periodo", "Periodo_DT", "Banco"])["Saldo_Act"].sum().reset_index()
         df_plot_ev = df_plot_ev.sort_values("Periodo_DT")
 
+        # El color ahora representa al Banco, y la línea es la SUMA de las cuentas
         fig_ev = px.line(
             df_plot_ev, 
             x="Periodo", 
             y="Saldo_Act", 
-            color="Etiqueta",
+            color="Banco" if len(bancos_sel) > 1 else None,
             markers=True,
             template="plotly_white",
-            labels={"Saldo_Act": "Saldo ($)"}
+            title=f"Evolución Sumada de Cuentas Seleccionadas",
+            labels={"Saldo_Act": "Suma Total ($)"}
         )
         
+        # Ajuste para que la línea no cambie de color si es solo un banco
+        if len(bancos_sel) == 1:
+            fig_ev.update_traces(line_color='#008080') 
+
         st.plotly_chart(fig_ev, use_container_width=True)
     else:
-        st.warning("⚠️ No hay datos para los bancos o cuentas seleccionadas en este periodo.")
-else:
-    st.info("💡 Seleccione al menos un banco y una cuenta en los filtros superiores para ver la evolución.")
+        st.warning("No hay datos para sumar en este rango.")
+
+    ##
