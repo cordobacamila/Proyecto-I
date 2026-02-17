@@ -116,6 +116,10 @@ def cargar_datos():
         elif codigo.endswith("515500"): return "Totalizador_4"
         elif codigo.endswith("521100"): return "Totalizador_4"
         elif codigo.endswith("521900"): return "Totalizador_4"
+        elif codigo.endswith("525100"): return "Totalizador_4"
+        elif codigo.endswith("525900"): return "Totalizador_4"
+        elif codigo.endswith("515100"): return "Totalizador_4"
+        elif codigo.endswith("521500"): return "Totalizador_4"
         else: return "Otro"
 
     mapeo_n2 = {
