@@ -157,8 +157,7 @@ def cargar_datos():
       
     df['Nivel_0'] = df['Codigo'].apply(clasificar_nivel_0)
     df['Nivel_1'] = df['Codigo'].apply(clasificar_nivel_1)
-    df['Nivel_2'] = df['Codigo'].str[:2].map(mapeo_n2).fillna("Otros")
-
+    df['Nivel_2'] = df['Codigo'].str[:2].map(mapeo_n2)
 
 
     return df
@@ -275,7 +274,7 @@ if cuentas_sel_list:
 
 # 2. Preparamos el DataFrame con la jerarquía
 # Agrupamos por los tres niveles para crear la estructura de árbol
-df_tree = df_res.groupby(["Nivel_0", "Nivel_2", "Cuenta"]).agg({
+df_tree = df_res.groupby(["Nivel_0", "Nivel_2", "Codigo", "Cuenta"]).agg({
     "Saldo_Act": "sum",
     "Var. Absoluta": "sum"
 }).reset_index()
