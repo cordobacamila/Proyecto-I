@@ -336,61 +336,43 @@ st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto"
 
 
 
-# --- DISEÑO DE DOS COLUMNAS ---
-# Creamos dos contenedores de igual ancho
-col_izquierda, col_derecha = st.columns([1, 1])
-
-# --- TABLA LADO IZQUIERDO ---
-with col_izquierda:
-    st.markdown("##### 📋 Vista Detalle A")
-    # Usamos la lógica de columnas dinámicas que definimos antes
-    df_styled_izq = (df_res[cols_a_mostrar]
-                 .style.format({
-                     "Saldo_Act": "{:,.2f}", 
-                     "Var. Absoluta": "{:,.2f}", 
-                     "Var. %": "{:.2f}%"
-                 })
-                 .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
-    
-    st.dataframe(df_styled_izq, use_container_width=True, hide_index=True, height="auto")
-
 # --- TABLA LADO DERECHO ---
-with col_derecha:
-    st.markdown(f"##### 📊 Composición por Cuenta ({opcion_vista})")
-    
-    # Preparamos los datos para el gráfico
-    # Usamos df_res que ya tiene aplicados los filtros de arriba
-    df_graf = df_res.copy()
-    
-    # Creamos el gráfico de barras agrupadas/apiladas
-    fig = px.bar(
-        df_graf, 
-        x="Banco", 
-        y="Saldo_Act", 
-        color="Cuenta",  # Esto crea el apilamiento por cuenta
-        title=None,
-        labels={"Saldo_Act": "Saldo Actual ($)", "Banco": "Entidad"},
-        text_auto='.2s', # Muestra el valor abreviado sobre las barras
-        template="plotly_white"
-    )
 
-    # Ajustes estéticos para que se vea bien en media pantalla
-    fig.update_layout(
-        margin=dict(l=0, r=0, t=20, b=0),
-        height=450,
-        showlegend=True,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.5,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=10)
-        )
-    )
+st.markdown(f"##### 📊 Composición por Cuenta ({opcion_vista})")
+    
+   # Preparamos los datos para el gráfico
+   # Usamos df_res que ya tiene aplicados los filtros de arriba
+df_graf = df_res.copy()
+    
+# Creamos el gráfico de barras agrupadas/apiladas
+fig = px.bar(
+    df_graf, 
+    x="Banco", 
+    y="Saldo_Act", 
+    color="Cuenta",  # Esto crea el apilamiento por cuenta
+    title=None,
+    labels={"Saldo_Act": "Saldo Actual ($)", "Banco": "Entidad"},
+    text_auto='.2s', # Muestra el valor abreviado sobre las barras
+    template="plotly_white"
+)
 
-    # Mostramos el gráfico en Streamlit
-    st.plotly_chart(fig, use_container_width=True)
+# Ajustes estéticos para que se vea bien en media pantalla
+fig.update_layout(
+    margin=dict(l=0, r=0, t=20, b=0),
+    height=450,
+    showlegend=True,
+    legend=dict(
+    orientation="h",
+    yanchor="bottom",
+    y=-0.5,
+    xanchor="center",
+    x=0.5,
+    font=dict(size=10)
+    )
+)
+
+# Mostramos el gráfico en Streamlit
+st.plotly_chart(fig, use_container_width=True)
 
 # --- BOTÓN DE DESCARGA ---
 # Creamos un buffer en memoria para el Excel
