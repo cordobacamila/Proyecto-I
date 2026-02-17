@@ -82,6 +82,7 @@ def cargar_datos():
     df['Debe'] = pd.to_numeric(df['Debe'], errors='coerce').fillna(0)
     df['Haber'] = pd.to_numeric(df['Haber'], errors='coerce').fillna(0)
     df['Saldo_Act'] = df['Debe'] - df['Haber']
+    df["Periodo"] = df["Mes"] + "-" + df["Año"]
     
     def clasificar_nivel_0(codigo):
         if not codigo: return "Otros"
@@ -156,74 +157,81 @@ if df.empty:
     st.error("No hay datos disponibles.")
     st.stop()
 
-# --- SIDEBAR: BOTÓN LIMPIAR ---
-with st.sidebar:
-    if st.button("🔄 Limpiar Todos los Filtros"):
-        st.rerun()
 
-
-
+# --------------------- SECCION TABLA ENTIDADES FINANCIERAS ---------------------#
 st.subheader("📊 **Entidades Financieras**")
 
-# Usamos un expander con un título más corto
 with st.expander("🎯 **Filtros rápidos**", expanded=True):
-    
-    # Entidades: Usamos el multiselect directamente
+    # 1. Entidades
     lista_bancos_master = sorted(df["Banco"].unique())
     bancos_sel = st.multiselect("🏢 Entidades:", 
                                 options=lista_bancos_master, 
-                                default=[lista_bancos_master[0]] if lista_bancos_master else [],
-                                key="b_main")
+                                default=[lista_bancos_master[0]] if lista_bancos_master else [])
 
-    # --- FILTROS COMPACTOS ---
-    # Fila 1: Año, Mes y Masa Patrimonial (3 columnas para ahorrar altura)
-    c1, c2, c3 = st.columns([1, 1, 1.5])
+    # 2. Periodo Único y Masa (Ajustado para que sea selectbox)
+    c1, c2 = st.columns([2, 1])
     with c1:
-        año_sel = st.selectbox("Año:", sorted(df["Año"].unique(), reverse=True))
+        lista_periodos = df.sort_values(["Año", "Mes"], ascending=False)["Periodo"].unique().tolist()
+        periodo_sel = st.selectbox("📅 Periodo (MM-AAAA):", options=lista_periodos)
     with c2:
-        mes_sel = st.selectbox("Mes:", sorted(df[df["Año"] == año_sel]["Mes"].unique()))
-    with c3:
         nivel0_sel = st.selectbox("Masa:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
 
-    # Fila 2: Rubro y Nivel de Detalle
-    c4, c5 = st.columns(2)
-    with c4:
+    # 3. Rubro y Detalle
+    c3, c4 = st.columns(2)
+    with c3:
         df_n2_opc = df[df["Nivel_0"] == nivel0_sel] if nivel0_sel != "Todos" else df
         nivel2_sel = st.selectbox("Rubro (N2):", ["Todos"] + sorted(df_n2_opc["Nivel_2"].unique().tolist()))
-    with c5:
+    with c4:
         nivel1_sel = st.selectbox("Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
 
-    # --- LÓGICA DE FILTRADO (Igual que antes pero optimizada) ---
-    df_opc = df.copy()
+    # --- LÓGICA DE FILTRADO PARA CUENTAS ---
+    df_opc = df[df["Periodo"] == periodo_sel].copy()
     if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
     if nivel2_sel != "Todos": df_opc = df_opc[df_opc["Nivel_2"] == nivel2_sel]
     if nivel1_sel != "Todos": df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
 
     lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
+    cuentas_sel_list = st.multiselect("🔢 Seleccionar Cuentas:", options=lista_cuentas_master)
 
-    # Multiselect de cuentas con etiqueta lateral o vacía para ahorrar espacio vertical
-    cuentas_sel_list = st.multiselect(
-        "🔢 Seleccionar Cuentas:", 
-        options=lista_cuentas_master,
-        placeholder="Escriba aquí..."
-    )
+# --- LÓGICA DE COMPARATIVO (CORREGIDA) ---
 
-# aca termina el expander-----------
-
-# --- LÓGICA DE COMPARATIVO ---
+# Extraemos Mes y Año de la selección actual
 try:
+    mes_sel, año_sel = periodo_sel.split("-")
     mes_num, año_num = int(mes_sel), int(año_sel)
-    if mes_num == 1: mes_ant, año_ant = "12", str(año_num - 1)
-    else: mes_ant, año_ant = str(mes_num - 1).zfill(2), año_sel
+    
+    # Calculamos periodo anterior
+    if mes_num == 1:
+        mes_ant, año_ant = "12", str(año_num - 1)
+    else:
+        mes_ant, año_ant = str(mes_num - 1).zfill(2), str(año_num)
 except:
     mes_ant, año_ant = None, None
 
+# Filtramos Actual y Anterior
 df_actual = df[(df["Año"] == año_sel) & (df["Mes"] == mes_sel) & (df["Banco"].isin(bancos_sel))].copy()
 df_anterior = df[(df["Año"] == año_ant) & (df["Mes"] == mes_ant) & (df["Banco"].isin(bancos_sel))].copy()
 
-df_comp = pd.merge(df_actual, df_anterior[['Banco', 'Codigo', 'Saldo_Act']], on=['Banco', 'Codigo'], how='left', suffixes=('', '_Ant')).fillna(0)
-df_comp['Var. Absoluta'] = df_comp['Saldo_Act'] - df_comp['Saldo_Act_Ant']
-df_comp['Var. %'] = df_comp.apply(lambda x: ((x['Saldo_Act'] - x['Saldo_Act_Ant']) / abs(x['Saldo_Act_Ant']) * 100) if x['Saldo_Act_Ant'] != 0 else 0, axis=1)
+# Merge y Cálculos de Variación
+if not df_actual.empty:
+    df_comp = pd.merge(
+        df_actual, 
+        df_anterior[['Banco', 'Codigo', 'Saldo_Act']], 
+        on=['Banco', 'Codigo'], 
+        how='left', 
+        suffixes=('', '_Ant')
+    ).fillna(0)
+
+    df_comp['Var. Absoluta'] = df_comp['Saldo_Act'] - df_comp['Saldo_Act_Ant']
+    
+    # Cálculo de % seguro (evitando división por cero)
+    df_comp['Var. %'] = df_comp.apply(
+        lambda x: ((x['Var. Absoluta']) / abs(x['Saldo_Act_Ant']) * 100) 
+        if x['Saldo_Act_Ant'] != 0 else 0, axis=1
+    )
+else:
+    df_comp = pd.DataFrame() # Caso vacío para evitar errores en la tabla
+
 
 # --- TABLA RESUMEN ---
 st.divider()
