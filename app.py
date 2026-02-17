@@ -115,7 +115,10 @@ def cargar_datos():
     df['Debe'] = pd.to_numeric(df['Debe'], errors='coerce').fillna(0)
     df['Haber'] = pd.to_numeric(df['Haber'], errors='coerce').fillna(0)
     df['Saldo_Act'] = df['Debe'] - df['Haber']
-    df["Periodo"] = df["Mes"] + "-" + df["Año"]
+    df["Periodo_DT"] = pd.to_datetime(df["Fecha"], format='%Y%m', errors='coerce')
+    # Periodo para mostrar (MM-AAAA)
+    df["Periodo"] = df["Fecha"].str[4:] + "-" + df["Fecha"].str[:4]
+    #df["Periodo"] = df["Mes"] + "-" + df["Año"]
     
     def clasificar_nivel_0(codigo):
         if not codigo: return "Otros"
@@ -223,18 +226,28 @@ with st.expander("🎯 **Configurar Filtros**", expanded=True):
 
     c_f1, c_f2 = st.columns([2, 1])
     with c_f1:
-        lista_periodos = df.sort_values(["Año", "Mes"], ascending=False)["Periodo"].unique().tolist()
-        periodo_sel = st.selectbox("📅 Periodo (MM-AAAA):", options=lista_periodos)
+        lista_periodos = df.sort_values("Periodo_DT", ascending=False)["Periodo"].unique().tolist()
+        periodo_sel = st.selectbox("📅 Periodo de Tabla (MM-AAAA):", options=lista_periodos)
     with c_f2:
-        nivel0_sel = st.selectbox("Masa Patrimonial:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
+        # CAMBIO: Multiselect para Masa Patrimonial
+        opciones_n0 = sorted(df["Nivel_0"].unique().tolist())
+        nivel0_sel = st.multiselect("Masa Patrimonial:", opciones_n0, default=opciones_n0)
 
     c_f3, c_f4 = st.columns(2)
     with c_f3:
-        df_n2_opc = df[df["Nivel_0"] == nivel0_sel] if nivel0_sel != "Todos" else df
+        # CAMBIO: Lógica .isin() para evitar error
+        df_n2_opc = df[df["Nivel_0"].isin(nivel0_sel)] if nivel0_sel else df
         opciones_n2 = sorted([str(x) for x in df_n2_opc["Nivel_2"].dropna().unique().tolist()])
         nivel2_sel = st.selectbox("Rubro (Nivel 2):", ["Todos"] + opciones_n2)
     with c_f4:
         nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
+
+    # Filtro para el Multiselect de Cuentas
+    df_opc = df[df["Periodo"] == periodo_sel].copy()
+    if nivel0_sel: df_opc = df_opc[df_opc["Nivel_0"].isin(nivel0_sel)]
+    # ... (Resto de filtros de df_opc igual) ...
+    lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
+    cuentas_sel_list = st.multiselect("🔢 Seleccionar Cuentas para Gráfico Evolutivo:", options=lista_cuentas_master)
 
     df_opc = df[df["Periodo"] == periodo_sel].copy()
     if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
@@ -406,56 +419,26 @@ except Exception as e:
 #     st.metric("📊 Var. % Total", f"{v_pct:.2f}%", delta=f"{v_pct:.2f}%")
 
 
+
+# --- PROCESAMIENTO DEL GRÁFICO ---
 st.markdown("---")
+st.subheader("📅 Evolución Histórica")
 
-# --- PROCESAMIENTO DEL GRÁFICO ---
-# --- SLICER DE FECHA ---
-# Obtenemos las fechas mínimas y máximas reales de tus datos
-p_min = df["Periodo"].min()
-p_max = df["Periodo"].max()
+p_min = df["Periodo_DT"].min().date()
+p_max = df["Periodo_DT"].max().date()
 
-st.subheader("📅 Rango de Análisis")
-rango_periodo = st.date_input(
-    "Seleccione el rango de periodos:",
-    value=(p_min, p_max),
-    min_value=p_min,
-    max_value=p_max
-)
+rango_periodo = st.date_input("Rango para el gráfico evolutivo:", value=(p_min, p_max), min_value=p_min, max_value=p_max)
 
-#grafico de lineas evolutivo
-# --- PROCESAMIENTO DEL GRÁFICO ---
 if bancos_sel and cuentas_sel_list:
     if isinstance(rango_periodo, tuple) and len(rango_periodo) == 2:
         inicio, fin = rango_periodo
-        
         codigos_comp = [c.split(" - ")[0] for c in cuentas_sel_list]
         
-        # Filtro con la nueva columna Periodo_DT
-        mask = (
-            (df["Banco"].isin(bancos_sel)) & 
-            (df["Codigo"].isin(codigos_comp)) &
-            (df["Periodo_DT"].dt.date >= inicio) &
-            (df["Periodo_DT"].dt.date <= fin)
-        )
+        mask = (df["Banco"].isin(bancos_sel)) & (df["Codigo"].isin(codigos_comp)) & \
+               (df["Periodo_DT"].dt.date >= inicio) & (df["Periodo_DT"].dt.date <= fin)
+        
         df_ev_final = df[mask].copy()
-
         if not df_ev_final.empty:
-            # Etiqueta inteligente
-            if len(bancos_sel) == 1:
-                df_ev_final["Etiqueta"] = df_ev_final["Cuenta"]
-            elif len(codigos_comp) == 1:
-                df_ev_final["Etiqueta"] = df_ev_final["Banco"]
-            else:
-                df_ev_final["Etiqueta"] = df_ev_final["Banco"] + " (" + df_ev_final["Codigo"] + ")"
-
-            # Agrupamos por Periodo (usamos el original para el eje X si prefieres el formato 202412)
             df_plot_ev = df_ev_final.groupby(["Periodo", "Etiqueta"])["Saldo_Act"].sum().reset_index()
-            df_plot_ev = df_plot_ev.sort_values("Periodo")
-
-            fig_ev = px.line(
-                df_plot_ev, x="Periodo", y="Saldo_Act", color="Etiqueta",
-                markers=True, template="plotly_white",
-                title="Evolución de Saldos por Periodo"
-            )
-            
+            fig_ev = px.line(df_plot_ev, x="Periodo", y="Saldo_Act", color="Etiqueta", markers=True)
             st.plotly_chart(fig_ev, use_container_width=True)
