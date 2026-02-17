@@ -288,19 +288,35 @@ df_res=df_res.sort_values("Codigo", ascending=True)
 cols_a_mostrar = ["Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]
 
 # Columnas que se muestran SOLO si no hay un filtro específico (para evitar redundancia)
-if len(bancos_sel) > 1:
-    cols_a_mostrar.insert(0, "Banco")
+# --- AJUSTE DE COLUMNAS DINÁMICAS (LÓGICA PERSONALIZADA) ---
 
-if nivel0_sel == "Todos":
+# 1. Definimos la base de columnas según la vista y cantidad de bancos
+if len(bancos_sel) == 1:
+    if opcion_vista == "Vista Macro":
+        # Solo Cuenta y datos numéricos (Sin Código)
+        cols_a_mostrar = ["Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]
+    elif opcion_vista == "Vista Subtotales":
+        # Se agrega el Código a la visión macro
+        cols_a_mostrar = ["Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]
+    else:
+        # Para "Todo" mantenemos el estándar
+        cols_a_mostrar = ["Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]
+else:
+    # Si hay más de un banco, siempre mostramos Banco y Código
+    cols_a_mostrar = ["Banco", "Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]
+
+# 2. Agregamos Nivel_0 y Nivel_2 solo si el usuario no los filtró (para evitar redundancia)
+if nivel2_sel == "Todos" and opcion_vista == "Todo":
+    cols_a_mostrar.insert(1, "Nivel_2")
+
+if nivel0_sel == "Todos" and opcion_vista == "Todo":
     cols_a_mostrar.insert(1, "Nivel_0")
 
-if nivel2_sel == "Todos":
-    cols_a_mostrar.insert(2, "Nivel_2")
+# --- RENDERIZADO DE TABLA ---
+st.subheader(f"📝 Balance contable ({opcion_vista})")
 
-st.subheader(f"📝 {opcion_vista}")
-
-# Aplicamos el estilo solo a las columnas seleccionadas y ordenamos
-df_res = df_res.sort_values("Codigo")
+# Ordenamos antes de aplicar el estilo
+df_res = df_res.sort_values("Codigo", ascending=True)
 
 df_styled = (df_res[cols_a_mostrar]
              .style.format({
@@ -310,7 +326,7 @@ df_styled = (df_res[cols_a_mostrar]
              })
              .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
 
-# Renderizado final sin error de altura
+# Altura automática para evitar scroll interno
 st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto")
 
 
