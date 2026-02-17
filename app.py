@@ -258,62 +258,51 @@ def color_variacion(val):
     return 'color: black;'
 
 # --- TABLA RESUMEN CON JERARQUÍA Y TOTAL GENERAL ---
+# --- TABLA DE BALANCE INTERACTIVA (EXPANDIBLE POR NIVELES) ---
 st.divider()
-st.subheader("📝 Balance Contable por Niveles")
+st.subheader("📝 Balance Contable Estructural")
 
 df_res = df_comp.copy()
 
-# 1. Aplicamos filtros de los selectores
-if nivel0_sel != "Todos": 
-    df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
-if nivel2_sel != "Todos": 
-    df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
-if nivel1_sel != "Todos": 
-    df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
+# 1. Aplicamos filtros previos
+if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
+if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
+if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
 if cuentas_sel_list:
     codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
     df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
 
-# 2. Agrupamos para la vista jerárquica
-df_pivot = df_res.groupby(["Nivel_0", "Nivel_2", "Cuenta"]).agg({
-    "Saldo_Act": "sum",
-    "Var. Absoluta": "sum"
-}).reset_index()
+# 2. Total General del Sistema Filtrado
+total_sistema = df_res["Saldo_Act"].sum()
+total_var_abs = df_res["Var. Absoluta"].sum()
+color_total = "#008000" if total_var_abs >= 0 else "#ff4b4b"
 
-# 3. Calculamos la fila de TOTAL GENERAL
-total_saldo = df_pivot["Saldo_Act"].sum()
-total_var_abs = df_pivot["Var. Absoluta"].sum()
+st.markdown(f"### Total General: **$ {formato_ar(total_sistema)}** <span style='color:{color_total}; font-size:0.8em;'>(Var: $ {formato_ar(total_var_abs)})</span>", unsafe_allow_html=True)
 
-# Evitar división por cero en el porcentaje del total
-saldo_anterior_total = total_saldo - total_var_abs
-total_var_pct = (total_var_abs / abs(saldo_anterior_total) * 100) if saldo_anterior_total != 0 else 0
-
-# Creamos el DataFrame de una fila para el total
-df_total = pd.DataFrame({
-    "Nivel_0": ["TOTAL"],
-    "Nivel_2": ["GENERAL"],
-    "Cuenta": ["-"],
-    "Saldo_Act": [total_saldo],
-    "Var. Absoluta": [total_var_abs]
-})
-
-# 4. Unimos la tabla con su total
-df_final_con_total = pd.concat([df_pivot, df_total], ignore_index=True)
-
-# 5. Calculamos Var % para todas las filas (incluyendo el total)
-df_final_con_total['Var. %'] = df_final_con_total.apply(
-    lambda x: (x['Var. Absoluta'] / abs(x['Saldo_Act'] - x['Var. Absoluta']) * 100) 
-    if (x['Saldo_Act'] - x['Var. Absoluta']) != 0 else 0, axis=1
-)
-
-# 6. Estilismo y Visualización
-def resaltar_total(s):
-    return ['font-weight: bold; background-color: #f0f2f6' if s.Nivel_0 == "TOTAL" else '' for _ in s]
-
-df_styled = (df_final_con_total.style
-             .format({"Saldo_Act": "{:,.2f}", "Var. Absoluta": "{:,.2f}", "Var. %": "{:.2f}%"})
-             .apply(resaltar_total, axis=1)
-             .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
-
-st.dataframe(df_styled, use_container_width=True, hide_index=True)
-
+# 3. Lógica de Grupos Expandibles
+# Iteramos por Nivel_0 (Activo, Pasivo, etc.)
+for n0, g0 in df_res.groupby("Nivel_0"):
+    sum_n0 = g0["Saldo_Act"].sum()
+    var_n0 = g0["Var. Absoluta"].sum()
+    
+    with st.expander(f"📁 {n0.upper()} | Subtotal: $ {formato_ar(sum_n0)}"):
+        
+        # Iteramos por Nivel_2 (Rubros)
+        for n2, g2 in g0.groupby("Nivel_2"):
+            sum_n2 = g2["Saldo_Act"].sum()
+            
+            # Dentro de cada Rubro, mostramos la tabla de cuentas detalle
+            st.markdown(f"**{n2}** (Total: $ {formato_ar(sum_n2)})")
+            
+            # Formateamos el detalle de cuentas de este rubro
+            df_detalle = g2[["Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]].copy()
+            
+            st.dataframe(
+                df_detalle.style.format({
+                    "Saldo_Act": "{:,.2f}", 
+                    "Var. Absoluta": "{:,.2f}", 
+                    "Var. %": "{:.2f}%"
+                }).map(color_variacion, subset=['Var. Absoluta', 'Var. %']),
+                use_container_width=True,
+                hide_index=True
+            )
