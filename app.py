@@ -250,9 +250,13 @@ with st.expander("🎯 **Configurar Filtros**", expanded=True):
     cuentas_sel_list = st.multiselect("🔢 Seleccionar Cuentas para Gráfico Evolutivo:", options=lista_cuentas_master)
 
     df_opc = df[df["Periodo"] == periodo_sel].copy()
-    if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
+    df_opc = df[df["Periodo"] == periodo_sel].copy()
+
+    # Cambiamos == por .isin() porque nivel0_sel ahora es una lista
+    if nivel0_sel: df_opc = df_opc[df_opc["Nivel_0"].isin(nivel0_sel)]
     if nivel2_sel != "Todos": df_opc = df_opc[df_opc["Nivel_2"] == nivel2_sel]
     if nivel1_sel != "Todos": df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
+
     
     lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
     cuentas_sel_list = st.multiselect("🔢 Seleccionar Cuentas:", options=lista_cuentas_master)
@@ -286,7 +290,7 @@ elif opcion_vista == "Vista Subtotales":
     df_res = df_res[(df_res["Vista"] == "Vista Subtotales") | (df_res["Codigo"] == "650000")]
 
 # Filtros adicionales
-if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
+if nivel0_sel: df_res = df_res[df_res["Nivel_0"].isin(nivel0_sel)]
 if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
 if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
 if cuentas_sel_list:
