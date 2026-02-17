@@ -280,7 +280,7 @@ def color_variacion(val):
     elif val > 0: return 'color: #008000; font-weight: bold;'
     return 'color: black;'
 
-st.subheader(f"📝 Balance contable ({opcion_vista})")
+st.subheader(f"📝 Balance contable ({opcion_vista}) de {bancos_sel}")
 df_res=df_res.sort_values("Codigo", ascending=True)
 
 # --- AJUSTE DE COLUMNAS DINÁMICAS PARA VISTA SLIM ---
