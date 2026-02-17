@@ -226,19 +226,15 @@ with st.expander("🎯 **Configurar Filtros**", expanded=True):
         lista_periodos = df.sort_values(["Año", "Mes"], ascending=False)["Periodo"].unique().tolist()
         periodo_sel = st.selectbox("📅 Periodo (MM-AAAA):", options=lista_periodos)
     with c_f2:
-        # Cambiamos selectbox por multiselect
         opciones_n0 = sorted(df["Nivel_0"].unique().tolist())
-        nivel0_sel = st.multiselect(
-            "Masa Patrimonial:", 
-            options=opciones_n0, 
-            default=opciones_n0  # Por defecto seleccionamos todos
-        )
+        nivel0_sel = st.multiselect("Masa Patrimonial:", options=opciones_n0, default=opciones_n0)
 
     c_f3, c_f4 = st.columns(2)
     with c_f3:
-        df_n2_opc = df[df["Nivel_0"] == nivel0_sel] if nivel0_sel != "Todos" else df
-        opciones_n2 = sorted([str(x) for x in df_n2_opc["Nivel_2"].dropna().unique().tolist()])
-        nivel2_sel = st.selectbox("Rubro (Nivel 2):", ["Todos"] + opciones_n2)
+        # Usamos .isin() para filtrar las opciones del siguiente nivel
+        df_n2_filtrado = df[df["Nivel_0"].isin(nivel0_sel)] if nivel0_sel else df
+        opciones_n2 = ["Todos"] + sorted(df_n2_filtrado["Nivel_2"].unique().tolist())
+        nivel2_sel = st.selectbox("Rubro (Nivel 2):", opciones_n2)
     with c_f4:
         nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
 
@@ -279,7 +275,10 @@ elif opcion_vista == "Vista Subtotales":
     df_res = df_res[(df_res["Vista"] == "Vista Subtotales") | (df_res["Codigo"] == "650000")]
 
 # Filtros adicionales
-if nivel0_sel: df_res = df_res[df_res["Nivel_0"].isin(nivel0_sel)]
+if nivel0_sel:
+    df_n2_opc = df[df["Nivel_0"].isin(nivel0_sel)]
+else:
+    df_n2_opc = df
 if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
 if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
 if cuentas_sel_list:
