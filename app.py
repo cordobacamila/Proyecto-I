@@ -272,33 +272,11 @@ if cuentas_sel_list:
     codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
     df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
 
-# 2. Preparamos el DataFrame con la jerarquía
-# Agrupamos por los tres niveles para crear la estructura de árbol
-df_tree = df_res.groupby(["Nivel_0", "Nivel_2", "Codigo", "Cuenta"]).agg({
-    "Saldo_Act": "sum",
-    "Var. Absoluta": "sum"
-}).reset_index()
+st.subheader("📝 Detalle por Cuenta")
+df_styled = (df_res[["Banco", "Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]]
+             .style.format({"Saldo_Act": "{:,.2f}", "Var. Absoluta": "{:,.2f}", "Var. %": "{:.2f}%"})
+             .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
 
-# Calculamos Var % sobre el agrupado
-df_tree['Var. %'] = df_tree.apply(
-    lambda x: (x['Var. Absoluta'] / abs(x['Saldo_Act'] - x['Var. Absoluta']) * 100) 
-    if (x['Saldo_Act'] - x['Var. Absoluta']) != 0 else 0, axis=1
-)
+st.dataframe(df_styled, use_container_width=True, hide_index=True)
 
-# 3. Visualización con st.dataframe y modo de agrupación
-# Nota: Streamlit agrupa automáticamente las celdas repetidas en las primeras columnas
-st.dataframe(
-    df_tree.style.format({
-        "Saldo_Act": "{:,.2f}", 
-        "Var. Absoluta": "{:,.2f}", 
-        "Var. %": "{:.2f}%"
-    }).map(color_variacion, subset=['Var. Absoluta', 'Var. %']),
-    use_container_width=True,
-    hide_index=True,
-    # Esta configuración permite que las columnas de niveles se vean como grupos
-    column_order=("Nivel_0", "Nivel_2", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %")
-)
 
-# 4. Fila de Total General (Fuera de la tabla para claridad)
-total_s = df_tree["Saldo_Act"].sum()
-st.info(f"**Total General Filtrado:** $ {formato_ar(total_s)}")
