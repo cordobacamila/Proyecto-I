@@ -335,12 +335,40 @@ st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto"
 
 
 
-c_f1, c_f2 = st.columns([2, 1])
-with c_f1:
-    st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto")
-        
-with c_f2:
-    st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto")
+# --- DISEÑO DE DOS COLUMNAS ---
+# Creamos dos contenedores de igual ancho
+col_izquierda, col_derecha = st.columns([1, 1])
+
+# --- TABLA LADO IZQUIERDO ---
+with col_izquierda:
+    st.markdown("##### 📋 Vista Detalle A")
+    # Usamos la lógica de columnas dinámicas que definimos antes
+    df_styled_izq = (df_res[cols_a_mostrar]
+                 .style.format({
+                     "Saldo_Act": "{:,.2f}", 
+                     "Var. Absoluta": "{:,.2f}", 
+                     "Var. %": "{:.2f}%"
+                 })
+                 .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
+    
+    st.dataframe(df_styled_izq, use_container_width=True, hide_index=True, height="auto")
+
+# --- TABLA LADO DERECHO ---
+with col_derecha:
+    st.markdown("##### 📋 Vista Detalle B (o Resumen)")
+    # Aquí puedes usar el mismo dataframe o uno filtrado diferente
+    # Por ejemplo, podrías mostrar solo las cuentas con mayor variación
+    df_res_der = df_res.sort_values("Var. Absoluta", ascending=False) 
+    
+    df_styled_der = (df_res_der[cols_a_mostrar]
+                 .style.format({
+                     "Saldo_Act": "{:,.2f}", 
+                     "Var. Absoluta": "{:,.2f}", 
+                     "Var. %": "{:.2f}%"
+                 })
+                 .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
+
+    st.dataframe(df_styled_der, use_container_width=True, hide_index=True, height="auto")
 
 # --- BOTÓN DE DESCARGA ---
 # Creamos un buffer en memoria para el Excel
