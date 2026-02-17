@@ -316,16 +316,20 @@ st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto"
 
 # --- BOTÓN DE DESCARGA ---
 # Creamos un buffer en memoria para el Excel
-output = io.BytesIO()
-with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-    df_res.to_excel(writer, index=False, sheet_name='Reporte_BCRA')
-
-st.download_button(
-    label="📥 Descargar esta vista a Excel",
-    data=output.getvalue(),
-    file_name=f"Reporte_BCRA_{opcion_vista}_{periodo_sel}.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+try:
+    output = io.BytesIO()
+    # Usamos el motor por defecto para evitar errores de librerías faltantes
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_res[cols_a_mostrar].to_excel(writer, index=False, sheet_name='Reporte')
+    
+    st.download_button(
+        label="📥 Descargar esta vista a Excel",
+        data=output.getvalue(),
+        file_name=f"Reporte_{opcion_vista}_{periodo_sel}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+except Exception as e:
+    st.info("Nota: Para habilitar la descarga a Excel, asegúrate de tener 'openpyxl' en requirements.txt")
 
 
 #height=True
