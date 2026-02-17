@@ -4,7 +4,7 @@ import io
 import os
 
 # Configuración de página: Mantenemos wide pero los elementos internos se adaptarán
-st.set_page_config(page_title="BCRA Entidades Financieras", layout="wide")
+st.set_page_config(page_title="BCRA Entidades Financieras", layout="wide", page_icon="📊")
 
 # --- FUNCIONES DE SOPORTE ---
 def formato_ar(valor):
@@ -56,6 +56,19 @@ def cargar_datos():
         return pd.DataFrame(columns=col_names + ["Año", "Mes", "Nivel_0", "Nivel_1", "Saldo_Act"])
         
     df = pd.concat(lista_df, ignore_index=True)
+
+    #para sacar el espacio en blanco del principio
+    st.markdown("""
+    <style>
+           .block-container {
+                padding-top: 1rem;
+                padding-bottom: 0rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+    </style>
+    """, unsafe_allow_html=True)
+
     
     # 1. NORMALIZAR NOMBRES DE BANCOS (Tomar el último según la Fecha)
     # Ordenamos por fecha para que el más reciente quede al final
