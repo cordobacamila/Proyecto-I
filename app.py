@@ -109,6 +109,7 @@ def cargar_datos():
     def clasificar_nivel_1(codigo):
         if not codigo: return "Otro"
         if codigo.endswith("00000"): return "Totalizador_1"
+        if codigo==("650000"): return "Totalizador_1"
         elif codigo.endswith("0000"): return "Totalizador_2"
         elif codigo.endswith("000"): return "Totalizador_3"
         elif codigo==("511100"): return "Totalizador_4"
@@ -120,6 +121,7 @@ def cargar_datos():
         elif codigo==("525900"): return "Totalizador_4"
         elif codigo==("515100"): return "Totalizador_4"
         elif codigo==("521500"): return "Totalizador_4"
+        elif codigo==("525900"): return "Totalizador_4"
         else: return "Otro"
 
     mapeo_n2 = {
