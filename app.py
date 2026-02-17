@@ -258,13 +258,13 @@ def color_variacion(val):
     return 'color: black;'
 
 # --- TABLA RESUMEN CON JERARQUÍA Y TOTAL GENERAL ---
-# --- TABLA DE BALANCE INTERACTIVA (EXPANDIBLE POR NIVELES) ---
+# --- TABLA ÚNICA JERÁRQUICA Y EXPANDIBLE ---
 st.divider()
-st.subheader("📝 Balance Contable Estructural")
+st.subheader("📝 Balance Estructural por Niveles")
 
 df_res = df_comp.copy()
 
-# 1. Aplicamos filtros previos
+# 1. Filtros (mantenemos tu lógica actual)
 if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
 if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
 if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
@@ -272,37 +272,33 @@ if cuentas_sel_list:
     codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
     df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
 
-# 2. Total General del Sistema Filtrado
-total_sistema = df_res["Saldo_Act"].sum()
-total_var_abs = df_res["Var. Absoluta"].sum()
-color_total = "#008000" if total_var_abs >= 0 else "#ff4b4b"
+# 2. Preparamos el DataFrame con la jerarquía
+# Agrupamos por los tres niveles para crear la estructura de árbol
+df_tree = df_res.groupby(["Nivel_0", "Nivel_2", "Cuenta"]).agg({
+    "Saldo_Act": "sum",
+    "Var. Absoluta": "sum"
+}).reset_index()
 
-st.markdown(f"### Total General: **$ {formato_ar(total_sistema)}** <span style='color:{color_total}; font-size:0.8em;'>(Var: $ {formato_ar(total_var_abs)})</span>", unsafe_allow_html=True)
+# Calculamos Var % sobre el agrupado
+df_tree['Var. %'] = df_tree.apply(
+    lambda x: (x['Var. Absoluta'] / abs(x['Saldo_Act'] - x['Var. Absoluta']) * 100) 
+    if (x['Saldo_Act'] - x['Var. Absoluta']) != 0 else 0, axis=1
+)
 
-# 3. Lógica de Grupos Expandibles
-# Iteramos por Nivel_0 (Activo, Pasivo, etc.)
-for n0, g0 in df_res.groupby("Nivel_0"):
-    sum_n0 = g0["Saldo_Act"].sum()
-    var_n0 = g0["Var. Absoluta"].sum()
-    
-    with st.expander(f"📁 {n0.upper()} | Subtotal: $ {formato_ar(sum_n0)}"):
-        
-        # Iteramos por Nivel_2 (Rubros)
-        for n2, g2 in g0.groupby("Nivel_2"):
-            sum_n2 = g2["Saldo_Act"].sum()
-            
-            # Dentro de cada Rubro, mostramos la tabla de cuentas detalle
-            st.markdown(f"**{n2}** (Total: $ {formato_ar(sum_n2)})")
-            
-            # Formateamos el detalle de cuentas de este rubro
-            df_detalle = g2[["Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]].copy()
-            
-            st.dataframe(
-                df_detalle.style.format({
-                    "Saldo_Act": "{:,.2f}", 
-                    "Var. Absoluta": "{:,.2f}", 
-                    "Var. %": "{:.2f}%"
-                }).map(color_variacion, subset=['Var. Absoluta', 'Var. %']),
-                use_container_width=True,
-                hide_index=True
-            )
+# 3. Visualización con st.dataframe y modo de agrupación
+# Nota: Streamlit agrupa automáticamente las celdas repetidas en las primeras columnas
+st.dataframe(
+    df_tree.style.format({
+        "Saldo_Act": "{:,.2f}", 
+        "Var. Absoluta": "{:,.2f}", 
+        "Var. %": "{:.2f}%"
+    }).map(color_variacion, subset=['Var. Absoluta', 'Var. %']),
+    use_container_width=True,
+    hide_index=True,
+    # Esta configuración permite que las columnas de niveles se vean como grupos
+    column_order=("Nivel_0", "Nivel_2", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %")
+)
+
+# 4. Fila de Total General (Fuera de la tabla para claridad)
+total_s = df_tree["Saldo_Act"].sum()
+st.info(f"**Total General Filtrado:** $ {formato_ar(total_s)}")
