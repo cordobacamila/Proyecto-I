@@ -17,15 +17,20 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+
 st.markdown("""
     <style>
-        /* Achicar la letra de las tablas */
-        .stDataFrame td, .stDataFrame th {
-            font-size: 12px !important;
+        /* 1. Achica la letra de las celdas de la tabla */
+        [data-testid="stDataFrame"] td {
+            font-size: 11px !important;
         }
-        /* Reducir el padding interno para que las filas sean más bajas */
-        [data-testid="stTable"] td, [data-testid="stTable"] th {
-            padding: 2px 5px !important;
+        /* 2. Achica la letra de los encabezados de la tabla */
+        [data-testid="stDataFrame"] th {
+            font-size: 11px !important;
+        }
+        /* 3. Opcional: Reduce el espacio entre filas para que sea más compacta */
+        [data-testid="stDataFrame"] div[role="gridcell"] {
+            padding: 2px 4px !important;
         }
     </style>
     """, unsafe_allow_html=True)
