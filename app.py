@@ -22,11 +22,11 @@ st.markdown("""
     <style>
         /* 1. Achica la letra de las celdas de la tabla */
         [data-testid="stDataFrame"] td {
-            font-size: 11px !important;
+            font-size: 7px !important;
         }
         /* 2. Achica la letra de los encabezados de la tabla */
         [data-testid="stDataFrame"] th {
-            font-size: 11px !important;
+            font-size: 7px !important;
         }
         /* 3. Opcional: Reduce el espacio entre filas para que sea más compacta */
         [data-testid="stDataFrame"] div[role="gridcell"] {
