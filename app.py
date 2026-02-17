@@ -389,22 +389,6 @@ fig.update_layout(
 # Mostramos el gráfico en Streamlit
 st.plotly_chart(fig, use_container_width=True)
 
-# --- BOTÓN DE DESCARGA ---
-# Creamos un buffer en memoria para el Excel
-try:
-    output = io.BytesIO()
-    # Usamos el motor por defecto para evitar errores de librerías faltantes
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_res[cols_a_mostrar].to_excel(writer, index=False, sheet_name='Reporte')
-    
-    st.download_button(
-        label="📥 Descargar esta vista a Excel",
-        data=output.getvalue(),
-        file_name=f"Reporte_{opcion_vista}_{periodo_sel}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-except Exception as e:
-    st.info("Nota: Para habilitar la descarga a Excel, asegúrate de tener 'openpyxl' en requirements.txt")
 
 
 #height=True
@@ -482,9 +466,8 @@ if bancos_sel and cuentas_sel_list:
     else:
         st.warning("No hay datos para los filtros seleccionados.")
 
-    ##
 
-
+# ----------------MARKET SHARE -------------------------------------------------
 st.markdown("---")
 st.subheader("📈 Participación de Mercado (Market Share)")
 
@@ -519,7 +502,7 @@ if cuentas_sel_list and p_inicio and p_fin:
 
         # Calculamos el % de participación
         df_ms_final["Market_Share"] = (df_ms_final["Saldo_Act"] / df_ms_final["Total_Sistema"]) * 100
-        df_ms_final = df_ms_final.sort_values("Periodo_DT")
+        df_ms_final = df_ms_final.sort_values(["Periodo_DT", "Market_Share"], ascending=[True, False])
 
         # --- 2. GRÁFICO DE MARKET SHARE ---
         fig_ms = px.line(
@@ -530,12 +513,26 @@ if cuentas_sel_list and p_inicio and p_fin:
             markers=True,
             template="plotly_white",
             title="Evolución de Cuota de Mercado (%)",
-            labels={"Market_Share": "% Market Share"},
-            line_shape="spline" # Líneas suavizadas para share
+            labels={"Market_Share": "Share"},
+            line_shape="spline"
         )
 
-        fig_ms.update_layout(yaxis_ticksuffix="%", hovermode="x unified")
-        
+        # Configuración del Hover (Cartelito)
+        fig_ms.update_traces(
+            # El orden en el recuadro respetará el orden del DataFrame
+            hovertemplate="<b>%{fullData.name}</b>: %{y:.2f}%<extra></extra>"
+        )
+
+        # Configuración del recuadro unificado y ordenamiento
+        fig_ms.update_layout(
+            hovermode="x unified",
+            yaxis_ticksuffix="%",
+            # Mantenemos el periodo como encabezado
+            xaxis=dict(hoverformat="%m-%Y"),
+            # Este parámetro asegura que el hover mantenga el orden que definimos en el DF
+            hoverlabel=dict(namelength=-1)
+        )
+
         st.plotly_chart(fig_ms, use_container_width=True)
 
         with st.expander("Ver tabla de Market Share (%)"):
