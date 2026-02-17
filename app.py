@@ -283,26 +283,35 @@ def color_variacion(val):
 st.subheader(f"📝 Balance contable ({opcion_vista})")
 df_res=df_res.sort_values("Codigo", ascending=True)
 
-# Solo las columnas esenciales para ahorrar espacio
-columnas_visibles = ["Nivel_0", "Nivel_2","Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]
+# --- AJUSTE DE COLUMNAS DINÁMICAS PARA VISTA SLIM ---
+# Columnas que SIEMPRE se muestran
+cols_a_mostrar = ["Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]
+
+# Columnas que se muestran SOLO si no hay un filtro específico (para evitar redundancia)
 if len(bancos_sel) > 1:
-    columnas_visibles.insert(0, "Banco") # Solo mostrar banco si hay más de uno
+    cols_a_mostrar.insert(0, "Banco")
 
-
-# Agregamos Nivel_0 y Nivel_2 solo si en el filtro pusiste "Todos"
-# Si ya elegiste uno, no hace falta que se repita en cada fila de la tabla
 if nivel0_sel == "Todos":
-    columnas_visibles.insert(1, "Nivel_0")
+    cols_a_mostrar.insert(1, "Nivel_0")
+
 if nivel2_sel == "Todos":
-    columnas_visibles.insert(2, "Nivel_2")
+    cols_a_mostrar.insert(2, "Nivel_2")
 
+st.subheader(f"📝 {opcion_vista}")
 
-df_styled = (df_res[columnas_visibles]
-             .sort_values("Codigo")
-             .style.format({"Saldo_Act": "{:,.2f}", "Var. Absoluta": "{:,.2f}", "Var. %": "{:.2f}%"})
+# Aplicamos el estilo solo a las columnas seleccionadas y ordenamos
+df_res = df_res.sort_values("Codigo")
+
+df_styled = (df_res[cols_a_mostrar]
+             .style.format({
+                 "Saldo_Act": "{:,.2f}", 
+                 "Var. Absoluta": "{:,.2f}", 
+                 "Var. %": "{:.2f}%"
+             })
              .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
 
-st.dataframe(df_styled, use_container_width=True, hide_index=True, height=None)
+# Renderizado final sin error de altura
+st.dataframe(df_styled, use_container_width=True, hide_index=True, height="auto")
 
 
 # --- BOTÓN DE DESCARGA ---
