@@ -302,7 +302,7 @@ df_styled = (df_res[columnas_visibles]
              .style.format({"Saldo_Act": "{:,.2f}", "Var. Absoluta": "{:,.2f}", "Var. %": "{:.2f}%"})
              .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
 
-st.dataframe(df_styled, use_container_width=True, hide_index=None)
+st.dataframe(df_styled, use_container_width=True, hide_index=True, height=None)
 
 
 # --- BOTÓN DE DESCARGA ---
