@@ -108,20 +108,16 @@ def cargar_datos():
 
     def clasificar_nivel_1(codigo):
         if not codigo: return "Otro"
-        if codigo.endswith("0000") and codigo != "650000":return "Totalizador_2"
-        elif codigo.endswith("00000"): return "Totalizador_1"
-        elif codigo==("650000"): return "Totalizador_1"
+        # 1. Casos específicos para Totalizador_1
+        if codigo.endswith("00000") or codigo == "650000": return "Totalizador_1"
+        # 2. Casos para Totalizador_2 (terminan en 0000 pero no son el 650000)
+        elif codigo.endswith("0000"):return "Totalizador_2"
+        # 3. Casos para Totalizador_3
         elif codigo.endswith("000"): return "Totalizador_3"
-        elif codigo==("511100"): return "Totalizador_4"
-        elif codigo==("511500"): return "Totalizador_4"
-        elif codigo==("515500"): return "Totalizador_4"
-        elif codigo==("521100"): return "Totalizador_4"
-        elif codigo==("521900"): return "Totalizador_4"
-        elif codigo==("525100"): return "Totalizador_4"
-        elif codigo==("525900"): return "Totalizador_4"
-        elif codigo==("515100"): return "Totalizador_4"
-        elif codigo==("521500"): return "Totalizador_4"
-        elif codigo==("525900"): return "Totalizador_4"
+        # 4. Casos específicos para Totalizador_4 (Agrupados en una lista)
+        elif codigo in ["511100", "511500", "515500", "521100", "521900", 
+                        "525100", "525900", "515100", "521500"]:return "Totalizador_4"
+        # 5. Todo lo demás
         else: return "Otro"
 
     mapeo_n2 = {
