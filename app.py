@@ -194,6 +194,7 @@ if df.empty:
 
 # --------------------- SECCION TABLA ENTIDADES FINANCIERAS ---------------------#
 # --- SECCIÓN: FILTROS DE ENTIDADES Y CUENTAS ---
+st.divider()
 st.subheader("📊 **Entidades Financieras**")
 
 with st.expander("🎯 **Configurar Filtros**", expanded=True):
