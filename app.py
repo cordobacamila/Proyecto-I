@@ -264,10 +264,10 @@ df_res = df_comp.copy()
 
 # Aplicamos la lógica de botones que definimos
 if opcion_vista == "Vista Macro":
-    df_res = df_res[df_res["Vista"] == "Vista Macro"]
+    df_res = df_res[df_res["clasificar_vista"] == "Vista Macro"]
 elif opcion_vista == "Vista Subtotales":
     # Subtotales + la excepción del 650000
-    df_res = df_res[(df_res["Vista"] == "Vista Subtotales") | (df_res["Codigo"] == "650000")]
+    df_res = df_res[(df_res["clasificar_vista"] == "Vista Subtotales") | (df_res["Codigo"] == "650000")]
 # Si es "Todo", no filtramos por la columna Vista
 
 # --- 3. APLICAR RESTO DE FILTROS (Bancos, Cuentas seleccionadas, etc.) ---
