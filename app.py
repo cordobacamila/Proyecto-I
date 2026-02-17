@@ -191,8 +191,16 @@ with st.expander("🎯 **Filtros rápidos**", expanded=True):
     # 3. Rubro y Detalle
     c3, c4 = st.columns(2)
     with c3:
+        # 1. Filtramos el DataFrame según la Masa
         df_n2_opc = df[df["Nivel_0"] == nivel0_sel] if nivel0_sel != "Todos" else df
-        nivel2_sel = st.selectbox("Rubro (N2):", ["Todos"] + sorted(df_n2_opc["Nivel_2"].unique().tolist()))
+        
+        # 2. Obtenemos valores únicos, quitamos nulos y convertimos a lista de strings
+        opciones_n2 = df_n2_opc["Nivel_2"].dropna().unique().tolist()
+        opciones_n2 = [str(x) for x in opciones_n2]
+        
+        # 3. Ahora sí podemos ordenar sin errores
+        nivel2_sel = st.selectbox("Rubro (N2):", ["Todos"] + sorted(opciones_n2))
+
     with c4:
         nivel1_sel = st.selectbox("Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
 
@@ -256,63 +264,93 @@ def aplicar_colores(val):
 
 # --- TABLA FINAL CONFIGURADA ---
 st.divider()
-st.subheader("📝 Balance Detallado por Entidad y Rubro")
+# --- SECCIÓN: FILTROS DE ENTIDADES Y CUENTAS ---
+st.subheader("📊 **Entidades Financieras**")
 
+with st.expander("🎯 **Configurar Filtros**", expanded=True):
+    # 1. Selección de Entidades (Ancho completo)
+    lista_bancos_master = sorted(df["Banco"].unique())
+    bancos_sel = st.multiselect("🏢 Entidades Financieras:", 
+                                options=lista_bancos_master, 
+                                default=[lista_bancos_master[0]] if lista_bancos_master else [])
+
+    # 2. Fila 1: Periodo Único y Masa Patrimonial
+    c_f1, c_f2 = st.columns([2, 1])
+    with c_f1:
+        # Usamos la columna 'Periodo' que ya tienes creada (formato MM-AAAA)
+        lista_periodos = df.sort_values(["Año", "Mes"], ascending=False)["Periodo"].unique().tolist()
+        periodo_sel = st.selectbox("📅 Periodo (MM-AAAA):", options=lista_periodos)
+    with c_f2:
+        nivel0_sel = st.selectbox("Masa Patrimonial:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
+
+    # 3. Fila 2: Rubro (Nivel 2) y Nivel de Detalle
+    c_f3, c_f4 = st.columns(2)
+    with c_f3:
+        # Filtrado preventivo para el Rubro
+        df_n2_opc = df[df["Nivel_0"] == nivel0_sel] if nivel0_sel != "Todos" else df
+        opciones_n2 = sorted([str(x) for x in df_n2_opc["Nivel_2"].dropna().unique().tolist()])
+        nivel2_sel = st.selectbox("Rubro (Nivel 2):", ["Todos"] + opciones_n2)
+    with c_f4:
+        nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
+
+    # 4. Fila 3: Multiselect de Cuentas (Filtrado dinámico)
+    df_opc = df[df["Periodo"] == periodo_sel].copy()
+    if nivel0_sel != "Todos": df_opc = df_opc[df_opc["Nivel_0"] == nivel0_sel]
+    if nivel2_sel != "Todos": df_opc = df_opc[df_opc["Nivel_2"] == nivel2_sel]
+    if nivel1_sel != "Todos": df_opc = df_opc[df_opc["Nivel_1"] == nivel1_sel]
+    
+    lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
+    cuentas_sel_list = st.multiselect("🔢 Seleccionar Cuentas:", options=lista_cuentas_master, placeholder="Busque cuenta(s)...")
+
+# --- LÓGICA DE COMPARATIVO ---
+try:
+    # Extraemos mes y año del Periodo seleccionado (MM-AAAA)
+    mes_sel, año_sel = periodo_sel.split("-")
+    mes_num, año_num = int(mes_sel), int(año_sel)
+    
+    if mes_num == 1: 
+        mes_ant, año_ant = "12", str(año_num - 1)
+    else: 
+        mes_ant, año_ant = str(mes_num - 1).zfill(2), str(año_num)
+except:
+    mes_ant, año_ant = None, None
+
+# Filtrado para la comparativa
+df_actual = df[(df["Año"] == año_sel) & (df["Mes"] == mes_sel) & (df["Banco"].isin(bancos_sel))].copy()
+df_anterior = df[(df["Año"] == año_ant) & (df["Mes"] == mes_ant) & (df["Banco"].isin(bancos_sel))].copy()
+
+# Merge y cálculos
+df_comp = pd.merge(df_actual, df_anterior[['Banco', 'Codigo', 'Saldo_Act']], on=['Banco', 'Codigo'], how='left', suffixes=('', '_Ant')).fillna(0)
+df_comp['Var. Absoluta'] = df_comp['Saldo_Act'] - df_comp['Saldo_Act_Ant']
+df_comp['Var. %'] = df_comp.apply(lambda x: ((x['Saldo_Act'] - x['Saldo_Act_Ant']) / abs(x['Saldo_Act_Ant']) * 100) if x['Saldo_Act_Ant'] != 0 else 0, axis=1)
+
+# --- PREPARACIÓN DE TABLA FINAL ---
+st.divider()
 df_res = df_comp.copy()
 
-# 1. Aplicar todos los filtros seleccionados
-if nivel0_sel != "Todos": 
-    df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
-if nivel2_sel != "Todos": 
-    df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
-if nivel1_sel != "Todos": 
-    df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
+# Aplicamos filtros finales a la tabla
+if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
+if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
+if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
 if cuentas_sel_list:
     codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
     df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
 
-# 2. Selección y Renombrado de columnas para la vista final
-# Agrupamos para asegurar que no haya duplicados si hay varios registros
-df_final = df_res.groupby(["Banco", "Nivel_0", "Nivel_2", "Cuenta"]).agg({
-    "Saldo_Act": "sum",
-    "Var. Absoluta": "sum",
-    "Var. %": "mean"
-}).reset_index()
+# Función de colores mejorada
+def color_variacion(val):
+    if val < 0: return 'color: #ff4b4b; font-weight: bold;' # Rojo
+    elif val > 0: return 'color: #008000; font-weight: bold;' # Verde
+    return 'color: black;' # Negro para el 0
 
-# Reordenamos las columnas según tu pedido
-df_final = df_final[[
-    "Banco", 
-    "Nivel_0", 
-    "Nivel_2", 
-    "Cuenta", 
-    "Saldo_Act", 
-    "Var. Absoluta", 
-    "Var. %"
-]]
+st.subheader("📝 Detalle por Cuenta")
 
-# 3. Renombrado estético de cabeceras
-df_final.columns = [
-    "Nombre Banco", 
-    "Masa Patrimonial", 
-    "Rubro", 
-    "Nombre de la Cuenta", 
-    "Saldo Actual", 
-    "Var. Absoluta", 
-    "Var. %"
-]
+# Mostramos la tabla con las columnas solicitadas
+df_styled = (df_res[["Banco", "Nivel_0", "Nivel_2", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]]
+             .style.format({
+                 "Saldo_Act": "{:,.2f}", 
+                 "Var. Absoluta": "{:,.2f}", 
+                 "Var. %": "{:.2f}%"
+             })
+             .map(color_variacion, subset=['Var. Absoluta', 'Var. %']))
 
-# 4. Visualización con Estilo
-st.dataframe(
-    df_final.style.format({
-        "Saldo Actual": "{:,.2f}", 
-        "Var. Absoluta": "{:,.2f}", 
-        "Var. %": "{:.2f}%"
-    }).map(aplicar_colores, subset=['Var. Absoluta', 'Var. %']),
-    use_container_width=True,
-    hide_index=True,
-    height=800  # Altura extendida para mejor visibilidad
-)
-
-# 5. Totalizador rápido al pie
-total_s = df_final["Saldo Actual"].sum()
-st.markdown(f"**Suma Total de Saldo Actual:** $ {formato_ar(total_s)}")
+st.dataframe(df_styled, use_container_width=True, hide_index=True, height=600)
