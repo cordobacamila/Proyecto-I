@@ -165,7 +165,17 @@ def cargar_datos():
     df['Nivel_0'] = df['Codigo'].apply(clasificar_nivel_0)
     df['Nivel_1'] = df['Codigo'].apply(clasificar_nivel_1)
     df['Nivel_2'] = df['Codigo'].str[:2].map(mapeo_n2)
-
+    
+    def clasificar_vista(codigo):
+        if not codigo: return "Otro"
+        # El 650000 y los terminados en 00000 son MACRO
+        if codigo == "650000" or codigo.endswith("00000"):
+            return "Vista Macro"
+        # Los terminados en 0000 (que no sean el anterior) son SUBTOTALES
+        elif codigo.endswith("0000"):
+            return "Vista Subtotales"
+        else:
+            return "Otro"
 
     return df
 
@@ -239,17 +249,46 @@ df_comp = pd.merge(df_actual, df_anterior[['Banco', 'Codigo', 'Saldo_Act']], on=
 df_comp['Var. Absoluta'] = df_comp['Saldo_Act'] - df_comp['Saldo_Act_Ant']
 df_comp['Var. %'] = df_comp.apply(lambda x: ((x['Saldo_Act'] - x['Saldo_Act_Ant']) / abs(x['Saldo_Act_Ant']) * 100) if x['Saldo_Act_Ant'] != 0 else 0, axis=1)
 
-# --- PREPARACIÓN DE TABLA FINAL ---
+
+# --- 1. AQUÍ AGREGAS EL SELECTOR DE VISTA ---
 st.divider()
+opcion_vista = st.radio(
+    "🧐 **Seleccione nivel de análisis:**",
+    options=["Vista Macro", "Vista Subtotales", "Todo"],
+    horizontal=True,
+    help="Macro: Cuentas terminadas en 00000. Subtotales: Cuentas terminadas en 0000."
+)
+
+# --- 2. LÓGICA DE FILTRADO PARA LA TABLA ---
 df_res = df_comp.copy()
 
-# Aplicamos filtros finales a la tabla
+# Aplicamos la lógica de botones que definimos
+if opcion_vista == "Vista Macro":
+    df_res = df_res[df_res["Vista"] == "Vista Macro"]
+elif opcion_vista == "Vista Subtotales":
+    # Subtotales + la excepción del 650000
+    df_res = df_res[(df_res["Vista"] == "Vista Subtotales") | (df_res["Codigo"] == "650000")]
+# Si es "Todo", no filtramos por la columna Vista
+
+# --- 3. APLICAR RESTO DE FILTROS (Bancos, Cuentas seleccionadas, etc.) ---
 if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
-if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
-if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
 if cuentas_sel_list:
     codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
     df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
+
+
+
+# --- PREPARACIÓN DE TABLA FINAL ---
+#st.divider()
+#df_res = df_comp.copy()
+
+# Aplicamos filtros finales a la tabla
+#if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
+#if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
+#if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
+#if cuentas_sel_list:
+#    codigos_sel = [c.split(" - ")[0] for c in cuentas_sel_list]
+#    df_res = df_res[df_res["Codigo"].isin(codigos_sel)]
 
 # Función de colores mejorada
 def color_variacion(val):
