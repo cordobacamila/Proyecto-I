@@ -226,7 +226,13 @@ with st.expander("🎯 **Configurar Filtros**", expanded=True):
         lista_periodos = df.sort_values(["Año", "Mes"], ascending=False)["Periodo"].unique().tolist()
         periodo_sel = st.selectbox("📅 Periodo (MM-AAAA):", options=lista_periodos)
     with c_f2:
-        nivel0_sel = st.selectbox("Masa Patrimonial:", ["Todos"] + sorted(df["Nivel_0"].unique().tolist()))
+        # Cambiamos selectbox por multiselect
+        opciones_n0 = sorted(df["Nivel_0"].unique().tolist())
+        nivel0_sel = st.multiselect(
+            "Masa Patrimonial:", 
+            options=opciones_n0, 
+            default=opciones_n0  # Por defecto seleccionamos todos
+        )
 
     c_f3, c_f4 = st.columns(2)
     with c_f3:
@@ -273,7 +279,7 @@ elif opcion_vista == "Vista Subtotales":
     df_res = df_res[(df_res["Vista"] == "Vista Subtotales") | (df_res["Codigo"] == "650000")]
 
 # Filtros adicionales
-if nivel0_sel != "Todos": df_res = df_res[df_res["Nivel_0"] == nivel0_sel]
+if nivel0_sel: df_res = df_res[df_res["Nivel_0"].isin(nivel0_sel)]
 if nivel2_sel != "Todos": df_res = df_res[df_res["Nivel_2"] == nivel2_sel]
 if nivel1_sel != "Todos": df_res = df_res[df_res["Nivel_1"] == nivel1_sel]
 if cuentas_sel_list:
