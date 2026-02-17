@@ -253,7 +253,7 @@ def color_variacion(val):
 st.subheader("📝 Detalle por Cuenta")
 
 # Mostramos la tabla con las columnas solicitadas
-df_styled = (df_res[["Banco", "Nivel_0", "Nivel_2", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]]
+df_styled = (df_res[["Banco", "Nivel_0", "Nivel_2","Codigo", "Cuenta", "Saldo_Act", "Var. Absoluta", "Var. %"]]
              .style.format({
                  "Saldo_Act": "{:,.2f}", 
                  "Var. Absoluta": "{:,.2f}", 
