@@ -556,6 +556,65 @@ if cuentas_sel_list and p_inicio and p_fin:
                 df_ms_completa.style.format(formatos), 
                 use_container_width=True
             )
+    # =========================================================
+        # NUEVAS SUGERENCIAS: ANÁLISIS DE DINÁMICA DE MERCADO
+        # =========================================================
+        st.markdown("---")
+        st.subheader("🔍 Análisis de Dinámica de Mercado")
+        
+        # --- PREPARACIÓN DE DATOS PARA LAS SUGERENCIAS ---
+        p_min_dt = df_ms_final["Periodo_DT"].min()
+        p_max_dt = df_ms_final["Periodo_DT"].max()
+        
+        # 1. Datos para Sugerencia 2: Ganadores y Perdedores
+        df_inicio = df_ms_final[df_ms_final["Periodo_DT"] == p_min_dt][["Banco", "Market_Share"]]
+        df_fin = df_ms_final[df_ms_final["Periodo_DT"] == p_max_dt][["Banco", "Market_Share"]]
+        
+        df_var = pd.merge(df_inicio, df_fin, on="Banco", suffixes=('_ini', '_fin'))
+        df_var["Dif_pp"] = df_var["Market_Share_fin"] - df_var["Market_Share_ini"]
+        df_var = df_var.sort_values("Dif_pp", ascending=True) # Ascendente para que el que más gana quede arriba en el chart horizontal
+
+        # --- RENDERIZADO DE GRÁFICOS (Sugerencias 2 y 3) ---
+        col_var, col_resto = st.columns(2)
+
+        with col_var:
+            # SUGERENCIA 2: Gráfico de barras horizontales de Variación
+            fig_var = px.bar(
+                df_var, 
+                x="Dif_pp", 
+                y="Banco", 
+                orientation='h',
+                title=f"Variación de Share (p.p.)<br><sup>{p_inicio} vs {p_fin}</sup>",
+                color="Dif_pp",
+                color_continuous_scale="RdYlGn",
+                template="plotly_white"
+            )
+            fig_var.update_layout(coloraxis_showscale=False)
+            fig_var.update_traces(hovertemplate="<b>%{y}</b><br>Variación: %{x:.2f} p.p.<extra></extra>")
+            st.plotly_chart(fig_var, use_container_width=True)
+
+        with col_resto:
+            # SUGERENCIA 3: Concentración (Bancos seleccionados vs Resto)
+            # Calculamos el peso del último mes
+            share_total_sel = df_fin["Market_Share"].sum()
+            share_resto = 100 - share_total_sel
+            
+            df_pie = pd.concat([
+                df_fin, 
+                pd.DataFrame([{"Banco": "Otros Bancos", "Market_Share": share_resto}])
+            ])
+
+            fig_pie = px.pie(
+                df_pie, 
+                values="Market_Share", 
+                names="Banco",
+                title=f"Market Share al cierre de {p_fin}",
+                hole=0.5,
+                template="plotly_white"
+            )
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_pie, use_container_width=True)
+
     else:
         st.warning("No hay datos suficientes para calcular el Market Share.")
 else:
