@@ -224,23 +224,21 @@ with st.sidebar:
     lista_bancos_master = sorted(df["Banco"].unique())
     bancos_sel = st.multiselect("🏢 Entidades Financieras:", options=lista_bancos_master, default=[lista_bancos_master[0]] if lista_bancos_master else [])
 
-    c_f1, c_f2 = st.columns([1, 1])
-    with c_f1:
-        lista_periodos = df.sort_values("Periodo_DT", ascending=False)["Periodo"].unique().tolist()
-        periodo_sel = st.selectbox("📅 Periodo de Tabla (MM-AAAA):", options=lista_periodos)
-    with c_f2:
-        # CAMBIO: Multiselect para Masa Patrimonial
-        opciones_n0 = sorted(df["Nivel_0"].unique().tolist())
-        nivel0_sel = st.multiselect("Masa Patrimonial:", opciones_n0, default=opciones_n0)
+    
+    lista_periodos = df.sort_values("Periodo_DT", ascending=False)["Periodo"].unique().tolist()
+    periodo_sel = st.selectbox("📅 Periodo de Tabla (MM-AAAA):", options=lista_periodos)
+    
+    # CAMBIO: Multiselect para Masa Patrimonial
+    opciones_n0 = sorted(df["Nivel_0"].unique().tolist())
+    nivel0_sel = st.multiselect("Masa Patrimonial:", opciones_n0, default=opciones_n0)
 
-    c_f3, c_f4 = st.columns(2)
-    with c_f3:
-        # CAMBIO: Lógica .isin() para evitar error
-        df_n2_opc = df[df["Nivel_0"].isin(nivel0_sel)] if nivel0_sel else df
-        opciones_n2 = sorted([str(x) for x in df_n2_opc["Nivel_2"].dropna().unique().tolist()])
-        nivel2_sel = st.selectbox("Rubro (Nivel 2):", ["Todos"] + opciones_n2)
-    with c_f4:
-        nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
+
+    # CAMBIO: Lógica .isin() para evitar error
+    df_n2_opc = df[df["Nivel_0"].isin(nivel0_sel)] if nivel0_sel else df
+    opciones_n2 = sorted([str(x) for x in df_n2_opc["Nivel_2"].dropna().unique().tolist()])
+    nivel2_sel = st.selectbox("Rubro (Nivel 2):", ["Todos"] + opciones_n2)
+    
+    nivel1_sel = st.selectbox("Nivel de Detalle:", ["Todos"] + sorted(df["Nivel_1"].unique().tolist()))
 
     # Filtro para el Multiselect de Cuentas
     df_opc = df[df["Periodo"] == periodo_sel].copy()
@@ -254,7 +252,7 @@ with st.sidebar:
     lista_cuentas_master = sorted((df_opc["Codigo"] + " - " + df_opc["Cuenta"]).unique())
     # 4. Única instancia del multiselect
     cuentas_sel_list = st.multiselect(
-        "🔢 Seleccionar Cuentas para Gráfico Evolutivo:", 
+        "🔢 Seleccionar Cuentas:", 
         options=lista_cuentas_master,
         help="Seleccione las cuentas que desea comparar en el gráfico de líneas al final de la página."
     )
