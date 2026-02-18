@@ -464,6 +464,23 @@ if bancos_sel and cuentas_sel_list:
         st.warning("No hay datos para los filtros seleccionados.")
 
 
+# Diccionario de colores por banco
+
+# 1. Creamos una lista de todos los bancos únicos
+todos_los_bancos = df["Banco"].unique().tolist()
+
+# 2. Generamos un mapa de colores (puedes usar una paleta de Plotly como px.colors.qualitative.Plotly)
+import plotly.express as px
+colores_palette = px.colors.qualitative.Plotly + px.colors.qualitative.Safe
+
+# Creamos el diccionario: {'Banco Galicia': '#636EFA', 'Banco Nación': '#EF553B', ...}
+mapa_colores_bancos = {banco: colores_palette[i % len(colores_palette)] for i, banco}
+# Agregamos un color específico para "Otros" o "Resto"
+mapa_colores_bancos["Otros Bancos"] = "#d3d3d3" # Gris claro
+mapa_colores_bancos["Resto del Sistema"] = "#d3d3d3"
+
+
+
 # ----------------MARKET SHARE -------------------------------------------------
 st.markdown("---")
 st.subheader("📈 Participación de Mercado (Market Share)")
@@ -507,6 +524,7 @@ if cuentas_sel_list and p_inicio and p_fin:
             x="Periodo", 
             y="Market_Share", 
             color="Banco",
+            color_discrete_map=mapa_colores_bancos,
             markers=True,
             template="plotly_white",
             title="Evolución de Cuota de Mercado (%)",
@@ -583,6 +601,7 @@ if cuentas_sel_list and p_inicio and p_fin:
                 df_var, 
                 x="Dif_pp", 
                 y="Banco", 
+                color_discrete_map=mapa_colores_bancos,
                 orientation='h',
                 title=f"Variación de Share (p.p.)<br><sup>{p_inicio} vs {p_fin}</sup>",
                 color="Dif_pp",
@@ -608,6 +627,8 @@ if cuentas_sel_list and p_inicio and p_fin:
                 df_pie, 
                 values="Market_Share", 
                 names="Banco",
+                color="Banco",
+                color_discrete_map=mapa_colores_bancos,
                 title=f"Market Share al cierre de {p_fin}",
                 hole=0.5,
                 template="plotly_white"
