@@ -114,7 +114,7 @@ def cargar_datos():
     df['Mes'] = df['Fecha'].str[4:]
     df['Debe'] = pd.to_numeric(df['Debe'], errors='coerce').fillna(0)
     df['Haber'] = pd.to_numeric(df['Haber'], errors='coerce').fillna(0)
-    df['Saldo_Act'] = df['Haber'] - df['Debe'] 
+    df['Saldo_Act'] = df['Debe'] + df['Haber']  df['Debe'] 
     df["Periodo_DT"] = pd.to_datetime(df["Fecha"], format='%Y%m', errors='coerce')
     # Periodo para mostrar (MM-AAAA)
     df["Periodo"] = df["Fecha"].str[4:] + "-" + df["Fecha"].str[:4]
@@ -274,7 +274,6 @@ df_comp['Var. Absoluta'] = df_comp['Saldo_Act'] - df_comp['Saldo_Act_Ant']
 df_comp['Var. %'] = df_comp.apply(lambda x: ((x['Saldo_Act'] - x['Saldo_Act_Ant']) / abs(x['Saldo_Act_Ant']) * 100) if x['Saldo_Act_Ant'] != 0 else 0, axis=1)
 
 # --- SELECTOR DE VISTA ---
-st.divider()
 opcion_vista = st.radio("🧐 **Seleccione nivel de análisis:**", options=["Vista Macro", "Vista Subtotales", "Todo"], horizontal=True)
 
 df_res = df_comp.copy()
