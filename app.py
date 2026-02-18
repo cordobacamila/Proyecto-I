@@ -403,6 +403,23 @@ st.plotly_chart(fig, use_container_width=True)
 
 
 
+# Diccionario de colores por banco
+
+# 1. Lista de bancos únicos
+todos_los_bancos = df["Banco"].unique().tolist()
+
+# 2. Paleta de colores extendida
+colores_palette = px.colors.qualitative.Plotly + px.colors.qualitative.Safe
+
+# 3. Diccionario con la sintaxis correcta (usando enumerate)
+mapa_colores_bancos = {banco: colores_palette[i % len(colores_palette)] for i, banco in enumerate(todos_los_bancos)}
+
+# 4. Colores fijos para categorías especiales
+mapa_colores_bancos["Otros Bancos"] = "#d3d3d3"
+mapa_colores_bancos["Resto del Sistema"] = "#d3d3d3"
+
+
+
 # --- PROCESAMIENTO DEL GRÁFICO EVOLUTIVO ---
 
 st.markdown("---")
@@ -447,37 +464,37 @@ if bancos_sel and cuentas_sel_list:
         # Orden cronológico
         df_plot_ev = df_plot_ev.sort_values("Periodo_DT")
 
-        # Crear Gráfico
-        fig_ev = px.line(
-            df_plot_ev, 
-            x="Periodo", 
-            y="Saldo_Act", 
-            color=color_param,
-            markers=True,
-            template="plotly_white",
-            title=titulo_graf,
-            labels={"Saldo_Act": "Saldo ($)"}
-        )
+
+        # 1. Definimos los argumentos del gráfico en un diccionario para que sea más limpio
+        kwargs_grafico = {
+            "data_frame": df_plot_ev,
+            "x": "Periodo",
+            "y": "Saldo_Act",
+            "color": color_param,  # SIN comillas, para que use la variable (Banco o Etiqueta)
+            "markers": True,
+            "template": "plotly_white",
+            "title": titulo_graf,
+            "labels": {"Saldo_Act": "Saldo ($)"},
+            "line_shape": "spline"
+        }
+
+        # 2. Si el usuario eligió ver por BANCO, le agregamos nuestro mapa de colores fijo
+        if color_param == "Banco":
+            kwargs_grafico["color_discrete_map"] = mapa_colores_bancos
+        
+        # 3. Creamos el gráfico usando esos argumentos (los ** desglosan el diccionario)
+        fig_ev = px.line(**kwargs_grafico)
+        
+        # 4. Ajustes finales de formato
+        fig_ev.update_layout(hovermode="x unified")
+        fig_ev.update_traces(hovertemplate="<b>%{fullData.name}</b>: $%{y:,.0f}<extra></extra>")
         
         st.plotly_chart(fig_ev, use_container_width=True)
     else:
         st.warning("No hay datos para los filtros seleccionados.")
 
 
-# Diccionario de colores por banco
 
-# 1. Lista de bancos únicos
-todos_los_bancos = df["Banco"].unique().tolist()
-
-# 2. Paleta de colores extendida
-colores_palette = px.colors.qualitative.Plotly + px.colors.qualitative.Safe
-
-# 3. Diccionario con la sintaxis correcta (usando enumerate)
-mapa_colores_bancos = {banco: colores_palette[i % len(colores_palette)] for i, banco in enumerate(todos_los_bancos)}
-
-# 4. Colores fijos para categorías especiales
-mapa_colores_bancos["Otros Bancos"] = "#d3d3d3"
-mapa_colores_bancos["Resto del Sistema"] = "#d3d3d3"
 
 
 
@@ -601,6 +618,7 @@ if cuentas_sel_list and p_inicio and p_fin:
                 df_var, 
                 x="Dif_pp", 
                 y="Banco", 
+                color="Banco",
                 color_discrete_map=mapa_colores_bancos,
                 orientation='h',
                 title=f"Variación de Share (p.p.)<br><sup>{p_inicio} vs {p_fin}</sup>",
