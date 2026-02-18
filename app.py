@@ -466,17 +466,17 @@ if bancos_sel and cuentas_sel_list:
 
 # Diccionario de colores por banco
 
-# 1. Creamos una lista de todos los bancos únicos
+# 1. Lista de bancos únicos
 todos_los_bancos = df["Banco"].unique().tolist()
 
-# 2. Generamos un mapa de colores (puedes usar una paleta de Plotly como px.colors.qualitative.Plotly)
-import plotly.express as px
+# 2. Paleta de colores extendida
 colores_palette = px.colors.qualitative.Plotly + px.colors.qualitative.Safe
 
-# Creamos el diccionario: {'Banco Galicia': '#636EFA', 'Banco Nación': '#EF553B', ...}
-mapa_colores_bancos = {banco: colores_palette[i % len(colores_palette)] for i, banco}
-# Agregamos un color específico para "Otros" o "Resto"
-mapa_colores_bancos["Otros Bancos"] = "#d3d3d3" # Gris claro
+# 3. Diccionario con la sintaxis correcta (usando enumerate)
+mapa_colores_bancos = {banco: colores_palette[i % len(colores_palette)] for i, banco in enumerate(todos_los_bancos)}
+
+# 4. Colores fijos para categorías especiales
+mapa_colores_bancos["Otros Bancos"] = "#d3d3d3"
 mapa_colores_bancos["Resto del Sistema"] = "#d3d3d3"
 
 
