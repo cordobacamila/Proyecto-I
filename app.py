@@ -219,8 +219,8 @@ if df.empty:
 # --- SECCIÓN: FILTROS DE ENTIDADES Y CUENTAS ---
 st.divider()
 st.subheader("📊 **Entidades Financieras**")
-
-with st.expander("🎯 **Configurar Filtros**", expanded=True):
+with st.sidebar("🎯 **Configurar Filtros**"):
+#with st.expander("🎯 **Configurar Filtros**", expanded=True):
     lista_bancos_master = sorted(df["Banco"].unique())
     bancos_sel = st.multiselect("🏢 Entidades Financieras:", options=lista_bancos_master, default=[lista_bancos_master[0]] if lista_bancos_master else [])
 
