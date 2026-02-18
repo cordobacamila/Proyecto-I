@@ -622,7 +622,7 @@ if cuentas_sel_list and p_inicio and p_fin:
                 color_discrete_map=mapa_colores_bancos,
                 orientation='h',
                 title=f"Variación de Share (p.p.)<br><sup>{p_inicio} vs {p_fin}</sup>",
-                color="Dif_pp",
+                #color="Dif_pp",
                 color_continuous_scale="RdYlGn",
                 template="plotly_white"
             )
