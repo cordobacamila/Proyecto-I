@@ -1,0 +1,27 @@
+credentials:
+
+  usernames:
+
+    jsmith:
+
+      email: jsmith@gmail.com
+
+      name: John Smith
+
+      password: 'contraseña_hasheada' # No usar texto plano
+
+    rdoe:
+
+      email: rdoe@gmail.com
+
+      name: Rebecca Doe
+
+      password: 'contraseña_hasheada'
+
+cookie:
+
+  expiry_days: 30
+
+  key: some_signature_key
+
+  name: some_cookie_name
