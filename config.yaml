@@ -10,13 +10,13 @@ credentials:
 
       password: 'contraseña_hasheada' # No usar texto plano
 
-    rdoe:
+    camilacordoba:
 
-      email: rdoe@gmail.com
+      email: camicordoba5@gmail.com
 
-      name: Rebecca Doe
+      name: Camila Cordoba
 
-      password: 'contraseña_hasheada'
+      password: 'Mosaico98.'
 
 cookie:
 
